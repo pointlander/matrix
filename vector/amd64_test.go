@@ -10,9 +10,9 @@ package vector
 import (
 	"math/rand"
 	"testing"
-)
 
-const Size = 32 * 1024
+	"github.com/ziutek/blas"
+)
 
 func TestDot(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
@@ -24,7 +24,7 @@ func TestDot(t *testing.T) {
 	for i := range y {
 		y[i] = float32(rng.NormFloat64())
 	}
-	correct := goDot(x, y)
+	correct := dot(x, y)
 	if a := Dot(x, y); int(a*100) != int(correct*100) {
 		t.Fatalf("dot product is broken %f != %f", a, correct)
 	}
@@ -46,7 +46,7 @@ func BenchmarkVectorDot(b *testing.B) {
 	}
 }
 
-func BenchmarkVectorBdot(b *testing.B) {
+func BenchmarkVectorSdot(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	x := make([]float32, Size)
 	for i := range x {
@@ -58,29 +58,6 @@ func BenchmarkVectorBdot(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Bdot(x, y)
-	}
-}
-
-func goDot(x, y []float32) (z float32) {
-	for i := range x {
-		z += x[i] * y[i]
-	}
-	return z
-}
-
-func BenchmarkDot(b *testing.B) {
-	rng := rand.New(rand.NewSource(1))
-	x := make([]float32, Size)
-	for i := range x {
-		x[i] = float32(rng.NormFloat64())
-	}
-	y := make([]float32, Size)
-	for i := range y {
-		y[i] = float32(rng.NormFloat64())
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		goDot(x, y)
+		blas.Sdot(len(x), x, 1, y, 1)
 	}
 }

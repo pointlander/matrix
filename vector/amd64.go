@@ -9,13 +9,7 @@ package vector
 
 import (
 	"unsafe"
-
-	"github.com/ziutek/blas"
 )
-
-func Bdot(x, y []float32) float32 {
-	return blas.Sdot(len(x), x, 1, y, 1)
-}
 
 func Dot(x, y []float32) (z float32) {
 	_mm256_dot(unsafe.Pointer(&x[0]), unsafe.Pointer(&y[0]), unsafe.Pointer(uintptr(len(x))), unsafe.Pointer(&z))
