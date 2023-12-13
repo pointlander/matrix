@@ -11,11 +11,6 @@ import (
 
 	"github.com/pointlander/gradient/tf32"
 	"github.com/pointlander/matrix/vector"
-
-	"gonum.org/v1/plot"
-	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/vg"
-	"gonum.org/v1/plot/vg/draw"
 )
 
 const (
@@ -314,7 +309,7 @@ func NewMulti(vars int) Multi {
 }
 
 // LearnMulti factores a matrix into AA^T
-func LearnMulti(vars [][]float32, debug bool) Multi {
+func LearnMulti(vars [][]float32, debug *[]float32) Multi {
 	rng := rand.New(rand.NewSource(1))
 	length := len(vars)
 	set := tf32.NewSet()
@@ -361,7 +356,6 @@ func LearnMulti(vars [][]float32, debug bool) Multi {
 
 	cost := tf32.Avg(tf32.Quadratic(tf32.Mul(set.Get("A"), tf32.T(set.Get("A"))), set.Get("E")))
 	alpha, eta, iterations := float32(.01), float32(.01), 8*2048
-	points := make(plotter.XYs, 0, iterations)
 	i := 0
 	for i < iterations {
 		total := float32(0.0)
@@ -386,32 +380,10 @@ func LearnMulti(vars [][]float32, debug bool) Multi {
 			set.Weights[0].X[k] += deltas[0][k]
 		}
 
-		points = append(points, plotter.XY{X: float64(i), Y: float64(total)})
-		if debug {
-			fmt.Println(i, total)
+		if debug != nil {
+			*debug = append(*debug, total)
 		}
 		i++
-	}
-
-	if debug {
-		p := plot.New()
-
-		p.Title.Text = "epochs vs cost"
-		p.X.Label.Text = "epochs"
-		p.Y.Label.Text = "cost"
-
-		scatter, err := plotter.NewScatter(points)
-		if err != nil {
-			panic(err)
-		}
-		scatter.GlyphStyle.Radius = vg.Length(1)
-		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
-		p.Add(scatter)
-
-		err = p.Save(8*vg.Inch, 8*vg.Inch, "cost.png")
-		if err != nil {
-			panic(err)
-		}
 	}
 
 	a := NewMatrix(0, set.Weights[0].S[0], set.Weights[0].S[1])
