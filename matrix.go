@@ -285,8 +285,9 @@ func TaylorSoftmax(m Matrix) Matrix {
 
 // Multi is a multivariate distribution
 type Multi struct {
+	E Matrix
+	U Matrix
 	A Matrix
-	U []float32
 }
 
 // NewMulti make a new multi
@@ -301,46 +302,57 @@ func NewMulti(vars int) Multi {
 			}
 		}
 	}
-	u := make([]float32, vars)
+	u := NewMatrix(1, vars, 1)
+	u.Data = u.Data[:cap(u.Data)]
 	return Multi{
 		A: a,
 		U: u,
 	}
 }
 
-// LearnMulti factores a matrix into AA^T
-func LearnMulti(vars [][]float32, debug *[]float32) Multi {
-	rng := rand.New(rand.NewSource(1))
+func NewMultiFromData(vars [][]float32) Multi {
 	length := len(vars)
-	set := tf32.NewSet()
-	set.Add("A", length, length)
-	set.Add("E", length, length)
-
-	e := set.Weights[1]
-	e.X = e.X[:cap(e.X)]
-	mu := make([]float32, length)
+	e := NewMatrix(1, length, length)
+	e.Data = e.Data[:cap(e.Data)]
+	u := NewMatrix(1, length, 1)
+	u.Data = u.Data[:cap(u.Data)]
 	for i, v := range vars {
 		for _, vv := range v {
-			mu[i] += vv
+			u.Data[i] += vv
 		}
 	}
 	size := len(vars[0])
-	for i := range mu {
-		mu[i] /= float32(size)
+	for i := range u.Data {
+		u.Data[i] /= float32(size)
 	}
 	for i := 0; i < length; i++ {
 		for j := i; j < length; j++ {
 			for k := 0; k < size; k++ {
-				e.X[i*length+j] += (vars[i][k] - mu[i]) * (vars[j][k] - mu[j])
+				e.Data[i*length+j] += (vars[i][k] - u.Data[i]) * (vars[j][k] - u.Data[j])
 			}
-			e.X[i*length+j] /= float32(size)
+			e.Data[i*length+j] /= float32(size)
 		}
 	}
 	for i := 0; i < length; i++ {
 		for j := i + 1; j < length; j++ {
-			e.X[j*length+i] = e.X[i*length+j]
+			e.Data[j*length+i] = e.Data[i*length+j]
 		}
 	}
+	return Multi{
+		E: e,
+		U: u,
+	}
+}
+
+// LearnA factores a matrix into AA^T
+func (m *Multi) LearnA(debug *[]float32) {
+	rng := rand.New(rand.NewSource(1))
+	length := m.U.Cols
+
+	set := tf32.NewSet()
+	set.Add("A", length, length)
+	set.Add("E", length, length)
+	set.Weights[1].X = append(set.Weights[1].X, m.E.Data...)
 
 	for _, w := range set.Weights[:1] {
 		factor := math.Sqrt(2.0 / float64(w.S[0]))
@@ -390,22 +402,15 @@ func LearnMulti(vars [][]float32, debug *[]float32) Multi {
 	for _, v := range set.Weights[0].X {
 		a.Data = append(a.Data, v)
 	}
-
-	return Multi{
-		A: a,
-		U: mu,
-	}
+	m.A = a
 }
 
 // Sample samples from the multivariate distribution
-func (m Multi) Sample(rng *rand.Rand) []float32 {
-	s := NewMatrix(0, len(m.U), 1)
-	for i := 0; i < len(m.U); i++ {
+func (m Multi) Sample(rng *rand.Rand) Matrix {
+	length := m.U.Cols
+	s := NewMatrix(0, length, 1)
+	for i := 0; i < length; i++ {
 		s.Data = append(s.Data, float32(rng.NormFloat64()))
 	}
-	s = MulT(m.A, s)
-	for i := range s.Data {
-		s.Data[i] += m.U[i]
-	}
-	return s.Data
+	return Add(MulT(m.A, s), m.U)
 }
