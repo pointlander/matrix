@@ -32,6 +32,18 @@ func TestMulti(t *testing.T) {
 	}
 }
 
+func BenchmarkMulti(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		multi := Multi{
+			E: NewMatrix(1, 2, 2),
+			U: NewMatrix(1, 2, 1),
+		}
+		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
+		multi.U.Data = append(multi.U.Data, 0, 0)
+		multi.LearnA(nil)
+	}
+}
+
 func TestMultiTest(t *testing.T) {
 	multi := Multi{
 		E: NewMatrix(1, 2, 2),
@@ -41,7 +53,6 @@ func TestMultiTest(t *testing.T) {
 	multi.U.Data = append(multi.U.Data, 0, 0)
 	multi.LearnATest(nil)
 	e := MulT(multi.A, T(multi.A))
-	t.Log(multi.A)
 	if math.Round(float64(e.Data[0])*10) != 10 {
 		t.Fatal("result should be 1", e.Data[0])
 	}
@@ -53,5 +64,17 @@ func TestMultiTest(t *testing.T) {
 	}
 	if math.Round(float64(e.Data[3])*10) != 20 {
 		t.Fatal("result should be 2", e.Data[3])
+	}
+}
+
+func BenchmarkMultiTest(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		multi := Multi{
+			E: NewMatrix(1, 2, 2),
+			U: NewMatrix(1, 2, 1),
+		}
+		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
+		multi.U.Data = append(multi.U.Data, 0, 0)
+		multi.LearnATest(nil)
 	}
 }

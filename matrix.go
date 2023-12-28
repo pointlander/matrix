@@ -416,6 +416,9 @@ func NewMultiFromData(vars [][]float32) Multi {
 	}
 }
 
+/*
+P(B)*Distribution/Cost
+*/
 // LearnATest factores a matrix into AA^T
 func (m *Multi) LearnATest(debug *[]float32) {
 	rng := rand.New(rand.NewSource(1))
@@ -459,8 +462,10 @@ func (m *Multi) LearnATest(debug *[]float32) {
 			aa.Data[i].StdDev /= Window
 			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
 		}
-
 		a = aa
+		if samples[0].Cost < 1e-6 {
+			break
+		}
 	}
 	m.A = samples[0].Matrix
 }
@@ -517,6 +522,9 @@ func (m *Multi) LearnA(debug *[]float32) {
 			*debug = append(*debug, total)
 		}
 		i++
+		if total < 1e-6 {
+			break
+		}
 	}
 
 	a := NewMatrix(0, set.Weights[0].S[0], set.Weights[0].S[1])
