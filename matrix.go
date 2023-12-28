@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 
 	"github.com/pointlander/gradient/tf32"
 	"github.com/pointlander/matrix/vector"
@@ -16,6 +17,8 @@ import (
 const (
 	// S is the scaling factor for the softmax
 	S = 1.0 - 1e-300
+	// Window is the window size
+	Window = 8
 )
 
 const (
@@ -26,6 +29,41 @@ const (
 	// StateTotal is the total number of states
 	StateTotal
 )
+
+// Random is a random variable
+type Random struct {
+	Mean   float32
+	StdDev float32
+}
+
+// RandomMatrix is a random matrix
+type RandomMatrix struct {
+	Cols int
+	Rows int
+	Data []Random
+}
+
+// NewRandomMatrix returns a new random matrix
+func NewRandomMatrix(cols, rows int) RandomMatrix {
+	data := make([]Random, cols*rows)
+	for i := range data {
+		data[i].StdDev = 1
+	}
+	return RandomMatrix{
+		Cols: cols,
+		Rows: rows,
+		Data: data,
+	}
+}
+
+// Sample samples a matrix
+func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
+	sample := NewMatrix(0, r.Cols, r.Rows)
+	for _, v := range r.Data {
+		sample.Data = append(sample.Data, float32(rng.NormFloat64())*v.StdDev+v.Mean)
+	}
+	return sample
+}
 
 // Matrix is a float32 matrix
 type Matrix struct {
@@ -124,6 +162,40 @@ func Step(m Matrix) Matrix {
 		}
 		o.Data = append(o.Data, value)
 	}
+	return o
+}
+
+// Quadratic adds two float32 matrices
+func Quadratic(m Matrix, n Matrix) Matrix {
+	size, width := len(m.Data), m.Cols
+	o := Matrix{
+		Cols: m.Rows,
+		Rows: 1,
+		Data: make([]float32, 0, 1*m.Rows),
+	}
+	for i := 0; i < size; i += width {
+		a, b, sum := m.Data[i:i+width], n.Data[i:i+width], float32(0.0)
+		for j, ax := range a {
+			diff := ax - b[j]
+			sum += diff * diff
+		}
+		o.Data = append(o.Data, sum)
+	}
+	return o
+}
+
+// Avg computes the avg of a matrix
+func Avg(m Matrix) Matrix {
+	o := Matrix{
+		Cols: 1,
+		Rows: 1,
+		Data: make([]float32, 0, 1),
+	}
+	sum := float32(0.0)
+	for _, value := range m.Data {
+		sum += value
+	}
+	o.Data = append(o.Data, sum/float32(len(m.Data)))
 	return o
 }
 
@@ -342,6 +414,55 @@ func NewMultiFromData(vars [][]float32) Multi {
 		E: e,
 		U: u,
 	}
+}
+
+// LearnATest factores a matrix into AA^T
+func (m *Multi) LearnATest(debug *[]float32) {
+	rng := rand.New(rand.NewSource(1))
+	length := m.U.Cols
+	a := NewRandomMatrix(length, length)
+	type Sample struct {
+		Cost   float32
+		Matrix Matrix
+	}
+	samples := make([]Sample, 256)
+	for i := 0; i < 128; i++ {
+		for j := range samples {
+			sample := a.Sample(rng)
+			cost := Avg(Quadratic(MulT(sample, T(sample)), m.E))
+			samples[j].Matrix = sample
+			samples[j].Cost = cost.Data[0]
+		}
+		sort.Slice(samples, func(i, j int) bool {
+			return samples[i].Cost < samples[j].Cost
+		})
+
+		aa := NewRandomMatrix(length, length)
+		for j := range aa.Data {
+			aa.Data[j].StdDev = 0
+		}
+		for i := range samples[:Window] {
+			for j, value := range samples[i].Matrix.Data {
+				aa.Data[j].Mean += value
+			}
+		}
+		for i := range aa.Data {
+			aa.Data[i].Mean /= Window
+		}
+		for i := range samples[:Window] {
+			for j, value := range samples[i].Matrix.Data {
+				diff := aa.Data[j].Mean - value
+				aa.Data[j].StdDev += diff * diff
+			}
+		}
+		for i := range aa.Data {
+			aa.Data[i].StdDev /= Window
+			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
+		}
+
+		a = aa
+	}
+	m.A = samples[0].Matrix
 }
 
 // LearnA factores a matrix into AA^T
