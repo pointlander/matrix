@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -354,6 +355,81 @@ func TaylorSoftmax(m Matrix) Matrix {
 		}
 	}
 	return o
+}
+
+// https://d-caponi1.medium.com/matrix-determinants-in-go-b96aa3bcdc37
+type stack []float32
+
+func (s *stack) isEmpty() bool {
+	return len(*s) == 0
+}
+func (s *stack) push(n float32) {
+	*s = append(*s, n)
+}
+func (s *stack) pop() (float32, bool) {
+	if s.isEmpty() {
+		return 0, false
+	}
+	i := len(*s) - 1
+	n := (*s)[i]
+	*s = (*s)[:i]
+	return n, true
+}
+func (s *stack) ToSlice() []float32 {
+	return *s
+}
+
+func subMat(mat [][]float32, p int) [][]float32 {
+	stacks := make([]stack, len(mat))
+	for n := range mat {
+		stacks[n] = stack{}
+		for j := range mat[n] {
+			if j != p {
+				stacks[n].push(mat[n][j])
+			}
+		}
+	}
+	out := make([][]float32, len(mat))
+	for k := range stacks {
+		out[k] = stacks[k].ToSlice()
+	}
+	return out
+}
+
+func Determinant(a Matrix) (float32, error) {
+	mat := make([][]float32, a.Rows)
+	for i := range mat {
+		mat[i] = a.Data[i*a.Cols : (i+1)*a.Cols]
+	}
+	return Det(mat)
+}
+
+func Det(mat [][]float32) (float32, error) {
+	// Base cases and rules
+	if len(mat) != len(mat[0]) {
+		return 0.0, errors.New("determinant can only be performed on square matrices")
+	}
+	if len(mat) == 1 {
+		return (mat[0][0]), nil
+	}
+	if len(mat) == 2 {
+		return (mat[0][0] * mat[1][1]) - (mat[0][1] * mat[1][0]), nil
+	}
+	s := float32(0.0) // accumulator
+	for i := 0; i < len(mat[0]); i++ {
+
+		sm := subMat(mat[1:][:], i) // peel off top row before passing
+		z, err := Det(sm)           // get determinant of sub-matrix
+
+		if err == nil {
+			if i%2 != 0 {
+				s -= mat[0][i] * z
+			} else {
+				s += mat[0][i] * z
+			}
+		}
+	}
+	return s, nil
 }
 
 // Multi is a multivariate distribution

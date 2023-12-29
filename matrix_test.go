@@ -10,6 +10,50 @@ import (
 	"testing"
 )
 
+func TestDeterminant(t *testing.T) {
+	a := NewMatrix(0, 2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	d, err := Determinant(a)
+	if err != nil {
+		panic(err)
+	}
+	if d != -14 {
+		t.Fatal("determinant should be -14")
+	}
+
+	a = NewMatrix(0, 3, 3)
+	a.Data = append(a.Data,
+		6, 1, 1,
+		4, -2, 5,
+		2, 8, 7,
+	)
+	d, err = Determinant(a)
+	if err != nil {
+		panic(err)
+	}
+	if d != -306 {
+		t.Fatal("determinant should be -306")
+	}
+
+	a = NewMatrix(0, 4, 4)
+	a.Data = append(a.Data,
+		1, 3, 1, 2,
+		5, 8, 5, 3,
+		0, 4, 0, 0,
+		2, 3, 2, 8,
+	)
+	d, err = Determinant(a)
+	if err != nil {
+		panic(err)
+	}
+	if d != 0 {
+		t.Fatal("determinant should be 0")
+	}
+}
+
 func TestMulti(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	for i := 0; i < 32; i++ {
