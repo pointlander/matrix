@@ -46,8 +46,9 @@ type RandomMatrix struct {
 // NewRandomMatrix returns a new random matrix
 func NewRandomMatrix(cols, rows int) RandomMatrix {
 	data := make([]Random, cols*rows)
+	factor := float32(math.Sqrt(2.0 / float64(cols)))
 	for i := range data {
-		data[i].StdDev = 1
+		data[i].StdDev = factor
 	}
 	return RandomMatrix{
 		Cols: cols,
@@ -420,16 +421,15 @@ func NewMultiFromData(vars [][]float32) Multi {
 P(B)*Distribution/Cost
 */
 // LearnATest factores a matrix into AA^T
-func (m *Multi) LearnATest(debug *[]float32) {
-	rng := rand.New(rand.NewSource(1))
+func (m *Multi) LearnATest(rng *rand.Rand, debug *[]float32) {
 	length := m.U.Cols
 	a := NewRandomMatrix(length, length)
 	type Sample struct {
 		Cost   float32
 		Matrix Matrix
 	}
-	samples := make([]Sample, 256)
-	for i := 0; i < 128; i++ {
+	samples := make([]Sample, 512)
+	for i := 0; i < 1024; i++ {
 		for j := range samples {
 			sample := a.Sample(rng)
 			cost := Avg(Quadratic(MulT(sample, T(sample)), m.E))
@@ -471,8 +471,7 @@ func (m *Multi) LearnATest(debug *[]float32) {
 }
 
 // LearnA factores a matrix into AA^T
-func (m *Multi) LearnA(debug *[]float32) {
-	rng := rand.New(rand.NewSource(1))
+func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	length := m.U.Cols
 
 	set := tf32.NewSet()
