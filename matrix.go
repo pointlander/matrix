@@ -19,7 +19,7 @@ const (
 	// S is the scaling factor for the softmax
 	S = 1.0 - 1e-300
 	// Window is the window size
-	Window = 32
+	Window = 64
 )
 
 const (
@@ -504,7 +504,7 @@ func (m *Multi) LearnATest(rng *rand.Rand, debug *[]float32) {
 		Cost   float32
 		Matrix Matrix
 	}
-	samples := make([]Sample, 512)
+	samples := make([]Sample, 1024)
 	for i := 0; i < 1024; i++ {
 		for j := range samples {
 			sample := a.Sample(rng)
