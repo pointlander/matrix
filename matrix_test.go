@@ -105,7 +105,7 @@ func TestMultiTest(t *testing.T) {
 		}
 		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
 		multi.U.Data = append(multi.U.Data, 0, 0)
-		multi.LearnATest(rng, nil)
+		multi.LearnAWithRandomSearch(rng, nil)
 		e := MulT(multi.A, T(multi.A))
 		if math.Round(float64(e.Data[0])*10) != 10 {
 			t.Fatal("result should be 1", e.Data[0])
@@ -132,6 +132,6 @@ func BenchmarkMultiTest(b *testing.B) {
 		}
 		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
 		multi.U.Data = append(multi.U.Data, 0, 0)
-		multi.LearnATest(rng, nil)
+		multi.LearnAWithRandomSearch(rng, nil)
 	}
 }

@@ -20,6 +20,8 @@ const (
 	S = 1.0 - 1e-300
 	// Window is the window size
 	Window = 64
+	// Samples is the number of samples to take
+	Samples = 1024
 )
 
 const (
@@ -396,6 +398,7 @@ func subMat(mat [][]float32, p int) [][]float32 {
 	return out
 }
 
+// Determinant calculates the determinant of a matrix
 func Determinant(a Matrix) (float32, error) {
 	mat := make([][]float32, a.Rows)
 	for i := range mat {
@@ -404,6 +407,7 @@ func Determinant(a Matrix) (float32, error) {
 	return Det(mat)
 }
 
+// Det calculates the determinant of a matrix
 func Det(mat [][]float32) (float32, error) {
 	// Base cases and rules
 	if len(mat) != len(mat[0]) {
@@ -459,6 +463,7 @@ func NewMulti(vars int) Multi {
 	}
 }
 
+// NewMultiFromData creates a new multivariate distribution
 func NewMultiFromData(vars [][]float32) Multi {
 	length := len(vars)
 	e := NewMatrix(1, length, length)
@@ -493,18 +498,15 @@ func NewMultiFromData(vars [][]float32) Multi {
 	}
 }
 
-/*
-P(B)*Distribution/Cost
-*/
-// LearnATest factores a matrix into AA^T
-func (m *Multi) LearnATest(rng *rand.Rand, debug *[]float32) {
+// LearnAWithRandomSearch factors a matrix into AA^T
+func (m *Multi) LearnAWithRandomSearch(rng *rand.Rand, debug *[]float32) {
 	length := m.U.Cols
 	a := NewRandomMatrix(length, length)
 	type Sample struct {
 		Cost   float32
 		Matrix Matrix
 	}
-	samples := make([]Sample, 1024)
+	samples := make([]Sample, Samples)
 	for i := 0; i < 1024; i++ {
 		for j := range samples {
 			sample := a.Sample(rng)
