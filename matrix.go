@@ -516,6 +516,7 @@ func (m *Multi) LearnATest(rng *rand.Rand, debug *[]float32) {
 			return samples[i].Cost < samples[j].Cost
 		})
 
+		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
 		weights, sum := make([]float32, Window), float32(0)
 		for i := range weights {
 			sum += 1 / samples[i].Cost
