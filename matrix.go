@@ -19,7 +19,7 @@ const (
 	// S is the scaling factor for the softmax
 	S = 1.0 - 1e-300
 	// Window is the window size
-	Window = 8
+	Window = 32
 )
 
 const (
@@ -181,7 +181,7 @@ func Quadratic(m Matrix, n Matrix) Matrix {
 			diff := ax - b[j]
 			sum += diff * diff
 		}
-		o.Data = append(o.Data, sum)
+		o.Data = append(o.Data, float32(math.Sqrt(float64(sum))))
 	}
 	return o
 }
@@ -516,26 +516,32 @@ func (m *Multi) LearnATest(rng *rand.Rand, debug *[]float32) {
 			return samples[i].Cost < samples[j].Cost
 		})
 
+		weights, sum := make([]float32, Window), float32(0)
+		for i := range weights {
+			sum += 1 / samples[i].Cost
+			weights[i] = 1 / samples[i].Cost
+		}
+		for i := range weights {
+			weights[i] /= sum
+		}
+
 		aa := NewRandomMatrix(length, length)
 		for j := range aa.Data {
 			aa.Data[j].StdDev = 0
 		}
 		for i := range samples[:Window] {
 			for j, value := range samples[i].Matrix.Data {
-				aa.Data[j].Mean += value
+				aa.Data[j].Mean += weights[i] * value
 			}
-		}
-		for i := range aa.Data {
-			aa.Data[i].Mean /= Window
 		}
 		for i := range samples[:Window] {
 			for j, value := range samples[i].Matrix.Data {
 				diff := aa.Data[j].Mean - value
-				aa.Data[j].StdDev += diff * diff
+				aa.Data[j].StdDev += weights[i] * diff * diff
 			}
 		}
 		for i := range aa.Data {
-			aa.Data[i].StdDev /= Window
+			aa.Data[i].StdDev /= (Window - 1.0) / Window
 			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
 		}
 		a = aa
