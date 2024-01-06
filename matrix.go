@@ -98,6 +98,18 @@ func (m Matrix) Size() int {
 	return m.Cols * m.Rows
 }
 
+// String returns a string for the matrix
+func (m Matrix) String() string {
+	s := "\n"
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			s += fmt.Sprintf(" %f", m.Data[i*m.Cols+j])
+		}
+		s += "\n"
+	}
+	return s + "\n"
+}
+
 // MulT multiplies two matrices and computes the transpose
 func MulT(m Matrix, n Matrix) Matrix {
 	if m.Cols != n.Cols {
