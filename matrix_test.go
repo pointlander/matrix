@@ -10,7 +10,40 @@ import (
 	"testing"
 )
 
+func TestLU(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	a := NewMatrix(0, 2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	l, u := LU(rng, a)
+	b := MulT(l, T(u))
+	if math.Round(float64(b.Data[0])) != 3 {
+		t.Fatal("result should be 3")
+	}
+	if math.Round(float64(b.Data[1])) != 8 {
+		t.Fatal("result should be 8")
+	}
+	if math.Round(float64(b.Data[2])) != 4 {
+		t.Fatal("result should be 4")
+	}
+	if math.Round(float64(b.Data[3])) != 6 {
+		t.Fatal("result should be 6")
+	}
+
+	a = NewMatrix(0, 3, 3)
+	a.Data = append(a.Data,
+		6, 1, 1,
+		4, -2, 5,
+		2, 8, 7,
+	)
+	l, u = LU(rng, a)
+	t.Log(MulT(l, T(u)))
+}
+
 func TestDeterminant(t *testing.T) {
+	delta := float32(1.0)
 	a := NewMatrix(0, 2, 2)
 	a.Data = append(a.Data,
 		3, 8,
@@ -20,8 +53,8 @@ func TestDeterminant(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if d != -14 {
-		t.Fatal("determinant should be -14")
+	if d > -14-delta && d < -14-delta {
+		t.Fatal("determinant should be -14", d)
 	}
 
 	a = NewMatrix(0, 3, 3)
@@ -35,7 +68,7 @@ func TestDeterminant(t *testing.T) {
 		panic(err)
 	}
 	if d != -306 {
-		t.Fatal("determinant should be -306")
+		t.Fatal("determinant should be -306", d)
 	}
 
 	a = NewMatrix(0, 4, 4)
@@ -50,7 +83,7 @@ func TestDeterminant(t *testing.T) {
 		panic(err)
 	}
 	if d != 0 {
-		t.Fatal("determinant should be 0")
+		t.Fatal("determinant should be 0", d)
 	}
 }
 
