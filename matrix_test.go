@@ -51,7 +51,7 @@ func TestLU(t *testing.T) {
 			u.Data = append(u.Data, value)
 		}
 	}
-	t.Log(T(MulT(l, T(u))))
+	t.Log(Mul(l, u))
 
 	a = NewMatrix(0, 3, 3)
 	a.Data = append(a.Data,

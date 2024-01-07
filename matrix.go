@@ -132,6 +132,11 @@ func MulT(m Matrix, n Matrix) Matrix {
 	return o
 }
 
+// Mul is regular matrix multiplication
+func Mul(m Matrix, n Matrix) Matrix {
+	return MulT(T(n), m)
+}
+
 // Add adds two float32 matrices
 func Add(m Matrix, n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
