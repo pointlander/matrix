@@ -18,6 +18,7 @@ func TestLU(t *testing.T) {
 		4, 6,
 	)
 	l, u := LU(rng, a)
+	t.Log(l, u)
 	b := MulT(l, T(u))
 	if math.Round(float64(b.Data[0])) != 3 {
 		t.Fatal("result should be 3")
@@ -31,6 +32,26 @@ func TestLU(t *testing.T) {
 	if math.Round(float64(b.Data[3])) != 6 {
 		t.Fatal("result should be 6")
 	}
+
+	mat := [][]float32{
+		{3, 8},
+		{4, 6},
+	}
+	ll, uu := LUDecomposition(mat, 2)
+	t.Log(ll, uu)
+	l = NewMatrix(0, 2, 2)
+	for i := range ll {
+		for _, value := range ll[i] {
+			l.Data = append(l.Data, value)
+		}
+	}
+	u = NewMatrix(0, 2, 2)
+	for i := range uu {
+		for _, value := range uu[i] {
+			u.Data = append(u.Data, value)
+		}
+	}
+	t.Log(T(MulT(l, T(u))))
 
 	a = NewMatrix(0, 3, 3)
 	a.Data = append(a.Data,

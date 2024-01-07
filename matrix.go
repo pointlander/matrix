@@ -525,6 +525,40 @@ func LU(rng *rand.Rand, a Matrix) (l, u Matrix) {
 	return samples[0].L, samples[0].U
 }
 
+// LUDecomposition
+// https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
+func LUDecomposition(mat [][]float32, n int) ([][]float32, [][]float32) {
+	lower := make([][]float32, n, n)
+	for i := range lower {
+		lower[i] = make([]float32, n)
+	}
+	upper := make([][]float32, n, n)
+	for i := range upper {
+		upper[i] = make([]float32, n)
+	}
+	for i := 0; i < n; i++ {
+		for k := i; k < n; k++ {
+			sum := float32(0.0)
+			for j := 0; j < i; j++ {
+				sum += lower[i][j] * upper[j][k]
+			}
+			upper[i][k] = mat[i][k] - sum
+		}
+		for k := i; k < n; k++ {
+			if i == k {
+				lower[i][i] = 1
+			} else {
+				sum := float32(0.0)
+				for j := 0; j < i; j++ {
+					sum += lower[k][j] * upper[j][i]
+				}
+				lower[k][i] = (mat[k][i] - sum) / upper[i][i]
+			}
+		}
+	}
+	return lower, upper
+}
+
 // https://d-caponi1.medium.com/matrix-determinants-in-go-b96aa3bcdc37
 type stack []float32
 
