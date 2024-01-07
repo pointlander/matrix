@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -532,115 +531,47 @@ func LU(rng *rand.Rand, a Matrix) (l, u Matrix) {
 
 // LUDecomposition
 // https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
-func LUDecomposition(mat [][]float32, n int) ([][]float32, [][]float32) {
-	lower := make([][]float32, n, n)
-	for i := range lower {
-		lower[i] = make([]float32, n)
-	}
-	upper := make([][]float32, n, n)
-	for i := range upper {
-		upper[i] = make([]float32, n)
-	}
+func LUDecomposition(mat Matrix) (Matrix, Matrix) {
+	n := mat.Cols
+	lower := NewMatrix(0, n, n)
+	lower.Data = lower.Data[:n*n]
+	upper := NewMatrix(0, n, n)
+	upper.Data = upper.Data[:n*n]
 	for i := 0; i < n; i++ {
 		for k := i; k < n; k++ {
 			sum := float32(0.0)
 			for j := 0; j < i; j++ {
-				sum += lower[i][j] * upper[j][k]
+				sum += lower.Data[i*n+j] * upper.Data[j*n+k]
 			}
-			upper[i][k] = mat[i][k] - sum
+			upper.Data[i*n+k] = mat.Data[i*n+k] - sum
 		}
 		for k := i; k < n; k++ {
 			if i == k {
-				lower[i][i] = 1
+				lower.Data[i*n+i] = 1
 			} else {
 				sum := float32(0.0)
 				for j := 0; j < i; j++ {
-					sum += lower[k][j] * upper[j][i]
+					sum += lower.Data[k*n+j] * upper.Data[j*n+i]
 				}
-				lower[k][i] = (mat[k][i] - sum) / upper[i][i]
+				if upper.Data[i*n+i] != 0 {
+					lower.Data[k*n+i] = (mat.Data[k*n+i] - sum) / upper.Data[i*n+i]
+				}
 			}
 		}
 	}
 	return lower, upper
 }
 
-// https://d-caponi1.medium.com/matrix-determinants-in-go-b96aa3bcdc37
-type stack []float32
-
-func (s *stack) isEmpty() bool {
-	return len(*s) == 0
-}
-func (s *stack) push(n float32) {
-	*s = append(*s, n)
-}
-func (s *stack) pop() (float32, bool) {
-	if s.isEmpty() {
-		return 0, false
-	}
-	i := len(*s) - 1
-	n := (*s)[i]
-	*s = (*s)[:i]
-	return n, true
-}
-func (s *stack) ToSlice() []float32 {
-	return *s
-}
-
-func subMat(mat [][]float32, p int) [][]float32 {
-	stacks := make([]stack, len(mat))
-	for n := range mat {
-		stacks[n] = stack{}
-		for j := range mat[n] {
-			if j != p {
-				stacks[n].push(mat[n][j])
-			}
-		}
-	}
-	out := make([][]float32, len(mat))
-	for k := range stacks {
-		out[k] = stacks[k].ToSlice()
-	}
-	return out
-}
-
 // Determinant calculates the determinant of a matrix
 func Determinant(a Matrix) (float32, error) {
-	rng := rand.New(rand.NewSource(1))
-	l, u := LU(rng, a)
+	//rng := rand.New(rand.NewSource(1))
+	//l, u := LU(rng, a)
+	l, u := LUDecomposition(a)
 	det := float32(1)
 	for i := 0; i < l.Cols; i++ {
 		det *= l.Data[i*l.Cols+i] * u.Data[i*l.Cols+i]
 	}
 	return det, nil
-}
-
-// Det calculates the determinant of a matrix
-func Det(mat [][]float32) (float32, error) {
-	// Base cases and rules
-	if len(mat) != len(mat[0]) {
-		return 0.0, errors.New("determinant can only be performed on square matrices")
-	}
-	if len(mat) == 1 {
-		return (mat[0][0]), nil
-	}
-	if len(mat) == 2 {
-		return (mat[0][0] * mat[1][1]) - (mat[0][1] * mat[1][0]), nil
-	}
-	s := float32(0.0) // accumulator
-	for i := 0; i < len(mat[0]); i++ {
-
-		sm := subMat(mat[1:][:], i) // peel off top row before passing
-		z, err := Det(sm)           // get determinant of sub-matrix
-
-		if err == nil {
-			if i%2 != 0 {
-				s -= mat[0][i] * z
-			} else {
-				s += mat[0][i] * z
-			}
-		}
-	}
-	return s, nil
 }
 
 // Multi is a multivariate distribution

@@ -18,40 +18,34 @@ func TestLU(t *testing.T) {
 		4, 6,
 	)
 	l, u := LU(rng, a)
-	t.Log(l, u)
 	b := MulT(l, T(u))
 	if math.Round(float64(b.Data[0])) != 3 {
-		t.Fatal("result should be 3")
+		t.Fatal("result should be 3", b.Data[0])
 	}
 	if math.Round(float64(b.Data[1])) != 8 {
-		t.Fatal("result should be 8")
+		t.Fatal("result should be 8", b.Data[1])
 	}
 	if math.Round(float64(b.Data[2])) != 4 {
-		t.Fatal("result should be 4")
+		t.Fatal("result should be 4", b.Data[2])
 	}
 	if math.Round(float64(b.Data[3])) != 6 {
-		t.Fatal("result should be 6")
+		t.Fatal("result should be 6", b.Data[3])
 	}
 
-	mat := [][]float32{
-		{3, 8},
-		{4, 6},
+	l, u = LUDecomposition(a)
+	b = Mul(l, u)
+	if math.Round(float64(b.Data[0])) != 3 {
+		t.Fatal("result should be 3", b.Data[0])
 	}
-	ll, uu := LUDecomposition(mat, 2)
-	t.Log(ll, uu)
-	l = NewMatrix(0, 2, 2)
-	for i := range ll {
-		for _, value := range ll[i] {
-			l.Data = append(l.Data, value)
-		}
+	if math.Round(float64(b.Data[1])) != 8 {
+		t.Fatal("result should be 8", b.Data[1])
 	}
-	u = NewMatrix(0, 2, 2)
-	for i := range uu {
-		for _, value := range uu[i] {
-			u.Data = append(u.Data, value)
-		}
+	if math.Round(float64(b.Data[2])) != 4 {
+		t.Fatal("result should be 4", b.Data[2])
 	}
-	t.Log(Mul(l, u))
+	if math.Round(float64(b.Data[3])) != 6 {
+		t.Fatal("result should be 6", b.Data[3])
+	}
 
 	a = NewMatrix(0, 3, 3)
 	a.Data = append(a.Data,
@@ -64,7 +58,6 @@ func TestLU(t *testing.T) {
 }
 
 func TestDeterminant(t *testing.T) {
-	delta := float32(1.0)
 	a := NewMatrix(0, 2, 2)
 	a.Data = append(a.Data,
 		3, 8,
@@ -74,7 +67,7 @@ func TestDeterminant(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if d > -14-delta && d < -14-delta {
+	if math.Round(float64(d)) != -14 {
 		t.Fatal("determinant should be -14", d)
 	}
 
@@ -88,7 +81,7 @@ func TestDeterminant(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if d != -306 {
+	if math.Round(float64(d)) != -306 {
 		t.Fatal("determinant should be -306", d)
 	}
 
