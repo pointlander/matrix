@@ -199,7 +199,7 @@ func Step(m Matrix) Matrix {
 	return o
 }
 
-// Quadratic adds two float32 matrices
+// Quadratic computes the quadratic loss of two matrices
 func Quadratic(m Matrix, n Matrix) Matrix {
 	size, width := len(m.Data), m.Cols
 	o := Matrix{
@@ -215,6 +215,22 @@ func Quadratic(m Matrix, n Matrix) Matrix {
 		}
 		o.Data = append(o.Data, float32(math.Sqrt(float64(sum))))
 	}
+	return o
+}
+
+// QuadraticSet computes the quadratic loss of sub sets of two matrices
+func QuadraticSet(m Matrix, n Matrix, set []int) Matrix {
+	o := Matrix{
+		Cols: 1,
+		Rows: 1,
+		Data: make([]float32, 0, 1),
+	}
+	sum := float32(0.0)
+	for _, i := range set {
+		diff := m.Data[i] - n.Data[i]
+		sum += diff * diff
+	}
+	o.Data = append(o.Data, float32(math.Sqrt(float64(sum))))
 	return o
 }
 
@@ -408,9 +424,11 @@ func LU(rng *rand.Rand, a Matrix) (l, u Matrix) {
 	stddev = float32(math.Sqrt(float64(stddev)))
 	rl, ru := NewRandomMatrix(a.Cols, a.Rows), NewRandomMatrix(a.Cols, a.Rows)
 	for i := range rl.Data {
+		rl.Data[i].Mean = mean
 		rl.Data[i].StdDev = stddev
 	}
 	for i := range ru.Data {
+		ru.Data[i].Mean = mean
 		ru.Data[i].StdDev = stddev
 	}
 	type Sample struct {
@@ -419,78 +437,88 @@ func LU(rng *rand.Rand, a Matrix) (l, u Matrix) {
 		U    Matrix
 	}
 	samples := make([]Sample, 256)
-	for i := 0; i < 1024; i++ {
-		for j := range samples {
-			sl, su := rl.Sample(rng), ru.Sample(rng)
-			for x := 0; x < sl.Cols; x++ {
-				for y := 0; y < x; y++ {
-					sl.Data[y*sl.Cols+x] = 0
+	for i := 0; i < 2*1024; i++ {
+		set := rng.Perm(len(rl.Data))
+		for s := 0; s < len(rl.Data); s += len(rl.Data) / 2 {
+			for j := range samples {
+				sl, su := rl.Sample(rng), ru.Sample(rng)
+				for x := 0; x < sl.Cols; x++ {
+					for y := 0; y < x; y++ {
+						sl.Data[y*sl.Cols+x] = 0
+					}
 				}
-			}
-			for x := 0; x < su.Cols; x++ {
-				for y := x + 1; y < su.Rows; y++ {
-					su.Data[y*su.Cols+x] = 0
+				for x := 0; x < su.Cols; x++ {
+					for y := x + 1; y < su.Rows; y++ {
+						su.Data[y*su.Cols+x] = 0
+					}
 				}
+				end := s + len(rl.Data)/2
+				if end > len(rl.Data) {
+					end = len(rl.Data)
+				}
+				cost := Avg(QuadraticSet(MulT(sl, T(su)), a, set[s:end]))
+				samples[j].L = sl
+				samples[j].U = su
+				samples[j].Cost = cost.Data[0]
 			}
-			cost := Avg(Quadratic(MulT(sl, T(su)), a))
-			samples[j].L = sl
-			samples[j].U = su
-			samples[j].Cost = cost.Data[0]
-		}
-		sort.Slice(samples, func(i, j int) bool {
-			return samples[i].Cost < samples[j].Cost
-		})
+			sort.Slice(samples, func(i, j int) bool {
+				return samples[i].Cost < samples[j].Cost
+			})
 
-		weights, sum := make([]float32, window), float32(0)
-		for i := range weights {
-			sum += 1 / samples[i].Cost
-			weights[i] = 1 / samples[i].Cost
-		}
-		for i := range weights {
-			weights[i] /= sum
-		}
+			weights, sum := make([]float32, window), float32(0)
+			for i := range weights {
+				sum += 1 / samples[i].Cost
+				weights[i] = 1 / samples[i].Cost
+			}
+			for i := range weights {
+				weights[i] /= sum
+			}
 
-		ll := NewRandomMatrix(a.Cols, a.Rows)
-		for j := range ll.Data {
-			ll.Data[j].StdDev = 0
-		}
-		for i := range samples[:window] {
-			for j, value := range samples[i].L.Data {
-				ll.Data[j].Mean += weights[i] * value
+			if i%2 == 0 {
+				ll := NewRandomMatrix(a.Cols, a.Rows)
+				for j := range ll.Data {
+					ll.Data[j].StdDev = 0
+				}
+				for i := range samples[:window] {
+					for j, value := range samples[i].L.Data {
+						ll.Data[j].Mean += weights[i] * value
+					}
+				}
+				for i := range samples[:window] {
+					for j, value := range samples[i].L.Data {
+						diff := ll.Data[j].Mean - value
+						ll.Data[j].StdDev += weights[i] * diff * diff
+					}
+				}
+				for i := range ll.Data {
+					ll.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+					ll.Data[i].StdDev = float32(math.Sqrt(float64(ll.Data[i].StdDev)))
+				}
+				rl = ll
+			} else {
+				uu := NewRandomMatrix(a.Cols, a.Rows)
+				for j := range uu.Data {
+					uu.Data[j].StdDev = 0
+				}
+				for i := range samples[:window] {
+					for j, value := range samples[i].U.Data {
+						uu.Data[j].Mean += weights[i] * value
+					}
+				}
+				for i := range samples[:window] {
+					for j, value := range samples[i].U.Data {
+						diff := uu.Data[j].Mean - value
+						uu.Data[j].StdDev += weights[i] * diff * diff
+					}
+				}
+				for i := range uu.Data {
+					uu.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+					uu.Data[i].StdDev = float32(math.Sqrt(float64(uu.Data[i].StdDev)))
+				}
+				ru = uu
 			}
 		}
-		for i := range samples[:window] {
-			for j, value := range samples[i].L.Data {
-				diff := ll.Data[j].Mean - value
-				ll.Data[j].StdDev += weights[i] * diff * diff
-			}
-		}
-		for i := range ll.Data {
-			ll.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-			ll.Data[i].StdDev = float32(math.Sqrt(float64(ll.Data[i].StdDev)))
-		}
-		rl = ll
-		uu := NewRandomMatrix(a.Cols, a.Rows)
-		for j := range uu.Data {
-			uu.Data[j].StdDev = 0
-		}
-		for i := range samples[:window] {
-			for j, value := range samples[i].U.Data {
-				uu.Data[j].Mean += weights[i] * value
-			}
-		}
-		for i := range samples[:window] {
-			for j, value := range samples[i].U.Data {
-				diff := uu.Data[j].Mean - value
-				uu.Data[j].StdDev += weights[i] * diff * diff
-			}
-		}
-		for i := range uu.Data {
-			uu.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-			uu.Data[i].StdDev = float32(math.Sqrt(float64(uu.Data[i].StdDev)))
-		}
-		ru = uu
-		if samples[0].Cost < 1e-7 {
+		if samples[0].Cost < 1e-18 {
 			break
 		}
 	}
