@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/pointlander/gradient/tf32"
 	"github.com/pointlander/matrix/vector"
 )
 
@@ -413,125 +412,9 @@ func TaylorSoftmax(m Matrix) Matrix {
 	return o
 }
 
-// LU factors a matrix into lower and upper
-func LU(rng *rand.Rand, a Matrix) (l, u Matrix) {
-	window := 4
-	mean, stddev := float32(0), float32(0)
-	for _, value := range a.Data {
-		mean += value
-	}
-	mean /= float32(len(a.Data))
-	for _, value := range a.Data {
-		diff := mean - value
-		stddev += diff * diff
-	}
-	stddev = float32(math.Sqrt(float64(stddev)))
-	rl, ru := NewRandomMatrix(a.Cols, a.Rows), NewRandomMatrix(a.Cols, a.Rows)
-	for i := range rl.Data {
-		rl.Data[i].Mean = mean
-		rl.Data[i].StdDev = stddev
-	}
-	for i := range ru.Data {
-		ru.Data[i].Mean = mean
-		ru.Data[i].StdDev = stddev
-	}
-	type Sample struct {
-		Cost float32
-		L    Matrix
-		U    Matrix
-	}
-	samples := make([]Sample, 256)
-	for i := 0; i < 2*1024; i++ {
-		set := rng.Perm(len(rl.Data))
-		for s := 0; s < len(rl.Data); s += len(rl.Data) / 2 {
-			for j := range samples {
-				sl, su := rl.Sample(rng), ru.Sample(rng)
-				for x := 0; x < sl.Cols; x++ {
-					for y := 0; y < x; y++ {
-						sl.Data[y*sl.Cols+x] = 0
-					}
-				}
-				for x := 0; x < su.Cols; x++ {
-					for y := x + 1; y < su.Rows; y++ {
-						su.Data[y*su.Cols+x] = 0
-					}
-				}
-				end := s + len(rl.Data)/2
-				if end > len(rl.Data) {
-					end = len(rl.Data)
-				}
-				cost := Avg(QuadraticSet(MulT(sl, T(su)), a, set[s:end]))
-				samples[j].L = sl
-				samples[j].U = su
-				samples[j].Cost = cost.Data[0]
-			}
-			sort.Slice(samples, func(i, j int) bool {
-				return samples[i].Cost < samples[j].Cost
-			})
-
-			weights, sum := make([]float32, window), float32(0)
-			for i := range weights {
-				sum += 1 / samples[i].Cost
-				weights[i] = 1 / samples[i].Cost
-			}
-			for i := range weights {
-				weights[i] /= sum
-			}
-
-			if i%2 == 0 {
-				ll := NewRandomMatrix(a.Cols, a.Rows)
-				for j := range ll.Data {
-					ll.Data[j].StdDev = 0
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].L.Data {
-						ll.Data[j].Mean += weights[i] * value
-					}
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].L.Data {
-						diff := ll.Data[j].Mean - value
-						ll.Data[j].StdDev += weights[i] * diff * diff
-					}
-				}
-				for i := range ll.Data {
-					ll.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-					ll.Data[i].StdDev = float32(math.Sqrt(float64(ll.Data[i].StdDev)))
-				}
-				rl = ll
-			} else {
-				uu := NewRandomMatrix(a.Cols, a.Rows)
-				for j := range uu.Data {
-					uu.Data[j].StdDev = 0
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].U.Data {
-						uu.Data[j].Mean += weights[i] * value
-					}
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].U.Data {
-						diff := uu.Data[j].Mean - value
-						uu.Data[j].StdDev += weights[i] * diff * diff
-					}
-				}
-				for i := range uu.Data {
-					uu.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-					uu.Data[i].StdDev = float32(math.Sqrt(float64(uu.Data[i].StdDev)))
-				}
-				ru = uu
-			}
-		}
-		if samples[0].Cost < 1e-18 {
-			break
-		}
-	}
-	return samples[0].L, samples[0].U
-}
-
-// LUDecomposition
+// LU lower upper decomposition
 // https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
-func LUDecomposition(mat Matrix) (Matrix, Matrix) {
+func LU(mat Matrix) (Matrix, Matrix) {
 	n := mat.Cols
 	lower := NewMatrix(0, n, n)
 	lower.Data = lower.Data[:n*n]
@@ -564,9 +447,7 @@ func LUDecomposition(mat Matrix) (Matrix, Matrix) {
 
 // Determinant calculates the determinant of a matrix
 func Determinant(a Matrix) (float32, error) {
-	//rng := rand.New(rand.NewSource(1))
-	//l, u := LU(rng, a)
-	l, u := LUDecomposition(a)
+	l, u := LU(a)
 	det := float32(1)
 	for i := 0; i < l.Cols; i++ {
 		det *= l.Data[i*l.Cols+i] * u.Data[i*l.Cols+i]
@@ -636,8 +517,8 @@ func NewMultiFromData(vars [][]float32) Multi {
 	}
 }
 
-// LearnAWithRandomSearch factors a matrix into AA^T
-func (m *Multi) LearnAWithRandomSearch(rng *rand.Rand, debug *[]float32) {
+// LearnA factors a matrix into AA^T
+func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	length := m.U.Cols
 	a := NewRandomMatrix(length, length)
 	type Sample struct {
@@ -691,69 +572,6 @@ func (m *Multi) LearnAWithRandomSearch(rng *rand.Rand, debug *[]float32) {
 		}
 	}
 	m.A = samples[0].Matrix
-}
-
-// LearnA factores a matrix into AA^T
-func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	length := m.U.Cols
-
-	set := tf32.NewSet()
-	set.Add("A", length, length)
-	set.Add("E", length, length)
-	set.Weights[1].X = append(set.Weights[1].X, m.E.Data...)
-
-	for _, w := range set.Weights[:1] {
-		factor := math.Sqrt(2.0 / float64(w.S[0]))
-		for i := 0; i < cap(w.X); i++ {
-			w.X = append(w.X, float32(rng.NormFloat64()*factor))
-		}
-	}
-
-	deltas := make([][]float32, 0, 8)
-	for _, p := range set.Weights {
-		deltas = append(deltas, make([]float32, len(p.X)))
-	}
-
-	cost := tf32.Avg(tf32.Quadratic(tf32.Mul(set.Get("A"), tf32.T(set.Get("A"))), set.Get("E")))
-	alpha, eta, iterations := float32(.01), float32(.01), 8*2048
-	i := 0
-	for i < iterations {
-		total := float32(0.0)
-		set.Zero()
-
-		total += tf32.Gradient(cost).X[0]
-		sum := float32(0.0)
-		for _, p := range set.Weights {
-			for _, d := range p.D {
-				sum += d * d
-			}
-		}
-		norm := float32(math.Sqrt(float64(sum)))
-		scaling := float32(1.0)
-		if norm > 1 {
-			scaling = 1 / norm
-		}
-
-		w := set.Weights[0]
-		for k, d := range w.D {
-			deltas[0][k] = alpha*deltas[0][k] - eta*d*scaling
-			set.Weights[0].X[k] += deltas[0][k]
-		}
-
-		if debug != nil {
-			*debug = append(*debug, total)
-		}
-		i++
-		if total < 1e-6 {
-			break
-		}
-	}
-
-	a := NewMatrix(0, set.Weights[0].S[0], set.Weights[0].S[1])
-	for _, v := range set.Weights[0].X {
-		a.Data = append(a.Data, v)
-	}
-	m.A = a
 }
 
 // Sample samples from the multivariate distribution

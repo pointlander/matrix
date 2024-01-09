@@ -10,8 +10,6 @@ package vector
 import (
 	"math/rand"
 	"testing"
-
-	"github.com/ziutek/blas"
 )
 
 func TestDot(t *testing.T) {
@@ -43,21 +41,5 @@ func BenchmarkVectorDot(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Dot(x, y)
-	}
-}
-
-func BenchmarkVectorSdot(b *testing.B) {
-	rng := rand.New(rand.NewSource(1))
-	x := make([]float32, Size)
-	for i := range x {
-		x[i] = float32(rng.NormFloat64())
-	}
-	y := make([]float32, Size)
-	for i := range y {
-		y[i] = float32(rng.NormFloat64())
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		blas.Sdot(len(x), x, 1, y, 1)
 	}
 }
