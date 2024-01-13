@@ -67,6 +67,21 @@ func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
 	return sample
 }
 
+// SampleDiscrete generates a discrete matrix sample
+func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
+	sample := NewMatrix(0, r.Cols, r.Rows)
+	for _, value := range r.Data {
+		v := float32(rng.NormFloat64())*value.StdDev + value.Mean
+		if v > 0 {
+			v = 1
+		} else {
+			v = -1
+		}
+		sample.Data = append(sample.Data, v)
+	}
+	return sample
+}
+
 // Matrix is a float32 matrix
 type Matrix struct {
 	Cols   int
