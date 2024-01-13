@@ -15,6 +15,7 @@ import (
 // GMM is a gaussian mixture model
 type GMM struct {
 	Clusters int
+	Epochs   int
 	Window   int
 	Samples  int
 	Rng      *rand.Rand
@@ -24,6 +25,7 @@ type GMM struct {
 func NewGMM() GMM {
 	return GMM{
 		Clusters: 20,
+		Epochs:   128,
 		Window:   8,
 		Samples:  256,
 		Rng:      rand.New(rand.NewSource(3)),
@@ -146,7 +148,7 @@ func (g *GMM) GMM(input Matrix) []int {
 		}
 		done <- true
 	}
-	for i := 0; i < 128; i++ {
+	for i := 0; i < g.Epochs; i++ {
 		j, flight := 0, 0
 		for j < g.Samples && flight < cpus {
 			go process(j, rng.Int63())
