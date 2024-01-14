@@ -125,3 +125,23 @@ func BenchmarkMulti(b *testing.B) {
 		multi.LearnA(rng, nil)
 	}
 }
+
+func BenchmarkFullAllocate(b *testing.B) {
+	const length = 1024 * 1024
+	for i := 0; i < b.N; i++ {
+		data := make([]int, length, length)
+		for i := range data {
+			data[i] = i
+		}
+	}
+}
+
+func BenchmarkTruncatedAllocate(b *testing.B) {
+	const length = 1024 * 1024
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 0, length)
+		for i := 0; i < length; i++ {
+			data = append(data, i)
+		}
+	}
+}
