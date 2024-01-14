@@ -113,8 +113,7 @@ func (g *GMM) GMM(input Matrix) []int {
 			det := float32(d)
 			for f := 0; f < input.Rows; f++ {
 				row := input.Data[f*input.Cols : (f+1)*input.Cols]
-				x := NewMatrix(input.Cols, 1)
-				x.Data = append(x.Data, row...)
+				x := NewMatrix(input.Cols, 1, row...)
 				y := MulT(T(MulT(Sub(x, samples[j].U[k]), samples[j].E[k])), Sub(x, samples[j].U[k]))
 				pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 					math.Pow(float64(det), 1/2) *
@@ -262,8 +261,7 @@ func (g *GMM) GMM(input Matrix) []int {
 	output := make([]int, input.Rows)
 	for i := 0; i < input.Rows; i++ {
 		row := input.Data[i*input.Cols : (i+1)*input.Cols]
-		x := NewMatrix(input.Cols, 1)
-		x.Data = append(x.Data, row...)
+		x := NewMatrix(input.Cols, 1, row...)
 
 		index, max := 0, 0.0
 		for j := 0; j < g.Clusters; j++ {

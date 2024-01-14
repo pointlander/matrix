@@ -82,12 +82,9 @@ func (n Net) CalculateStatistics(systems []Sample) RandomMatrix {
 
 // Fire runs the network
 func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
-	q := NewMatrix(n.Outputs, n.Samples)
-	q.Data = q.Data[:n.Outputs*n.Samples]
-	k := NewMatrix(n.Outputs, n.Samples)
-	k.Data = k.Data[:n.Outputs*n.Samples]
-	v := NewMatrix(n.Outputs, n.Samples)
-	v.Data = v.Data[:n.Outputs*n.Samples]
+	q := NewZeroMatrix(n.Outputs, n.Samples)
+	k := NewZeroMatrix(n.Outputs, n.Samples)
+	v := NewZeroMatrix(n.Outputs, n.Samples)
 	systemsQ := make([]Sample, n.Samples)
 	systemsK := make([]Sample, n.Samples)
 	systemsV := make([]Sample, n.Samples)

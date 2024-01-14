@@ -89,14 +89,26 @@ type Matrix struct {
 	Data []float32
 }
 
-// NewMatrix32 creates a new float32 matrix
-func NewMatrix(cols, rows int) Matrix {
-	m := Matrix{
+// NewMatrix creates a new float32 matrix
+func NewMatrix(cols, rows int, data ...float32) Matrix {
+	if data == nil {
+		data = make([]float32, 0, cols*rows)
+	}
+	return Matrix{
 		Cols: cols,
 		Rows: rows,
-		Data: make([]float32, 0, cols*rows),
+		Data: data,
 	}
-	return m
+}
+
+// NewZeroMatrix creates a new float32 matrix of zeros
+func NewZeroMatrix(cols, rows int) Matrix {
+	length := cols * rows
+	return Matrix{
+		Cols: cols,
+		Rows: rows,
+		Data: make([]float32, length, length),
+	}
 }
 
 // Size is the size of the float32 matrix
@@ -424,10 +436,8 @@ func TaylorSoftmax(m Matrix) Matrix {
 // https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
 func LU(mat Matrix) (Matrix, Matrix) {
 	n := mat.Cols
-	lower := NewMatrix(n, n)
-	lower.Data = lower.Data[:n*n]
-	upper := NewMatrix(n, n)
-	upper.Data = upper.Data[:n*n]
+	lower := NewZeroMatrix(n, n)
+	upper := NewZeroMatrix(n, n)
 	for i := 0; i < n; i++ {
 		for k := i; k < n; k++ {
 			sum := float32(0.0)
@@ -473,8 +483,7 @@ type Multi struct {
 // NewMulti make a new multi
 func NewMulti(vars int) Multi {
 	factor := float32(math.Sqrt(2.0 / float64(vars)))
-	a := NewMatrix(vars, vars)
-	a.Data = a.Data[:cap(a.Data)]
+	a := NewZeroMatrix(vars, vars)
 	for i := 0; i < vars; i++ {
 		for j := 0; j < vars; j++ {
 			if i == j {
@@ -482,8 +491,7 @@ func NewMulti(vars int) Multi {
 			}
 		}
 	}
-	u := NewMatrix(vars, 1)
-	u.Data = u.Data[:cap(u.Data)]
+	u := NewZeroMatrix(vars, 1)
 	return Multi{
 		A: a,
 		U: u,
@@ -493,10 +501,8 @@ func NewMulti(vars int) Multi {
 // NewMultiFromData creates a new multivariate distribution
 func NewMultiFromData(vars [][]float32) Multi {
 	length := len(vars)
-	e := NewMatrix(length, length)
-	e.Data = e.Data[:cap(e.Data)]
-	u := NewMatrix(length, 1)
-	u.Data = u.Data[:cap(u.Data)]
+	e := NewZeroMatrix(length, length)
+	u := NewZeroMatrix(length, 1)
 	for i, v := range vars {
 		for _, vv := range v {
 			u.Data[i] += vv
