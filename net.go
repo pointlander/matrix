@@ -131,7 +131,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 	}
 	j, flight := 0, 0
 	for j < n.Samples && flight < cpus {
-		go process(j, n.Rng.Int63())
+		go process(j, n.Rng.Int63()+1)
 		j++
 		flight++
 	}
@@ -139,7 +139,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		<-done
 		flight--
 
-		go process(j, n.Rng.Int63())
+		go process(j, n.Rng.Int63()+1)
 		j++
 		flight++
 	}

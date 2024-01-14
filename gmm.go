@@ -37,7 +37,6 @@ func NewGMM() GMM {
 // https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 func (g *GMM) GMM(input Matrix) []int {
 	rng := g.Rng
-	input = Normalize(input)
 
 	type Cluster struct {
 		E RandomMatrix
@@ -56,17 +55,18 @@ func (g *GMM) GMM(input Matrix) []int {
 	}
 	stddev /= count
 	stddev = float32(math.Sqrt(float64(stddev)))
+	factor := float32(math.Sqrt(2.0 / float64(input.Cols)))
 	clusters := make([]Cluster, g.Clusters, g.Clusters)
 	for i := range clusters {
 		clusters[i].E = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range clusters[i].E.Data {
-			clusters[i].E.Data[j].Mean = mean + stddev*float32(rng.NormFloat64())
-			clusters[i].E.Data[j].StdDev = stddev * float32(rng.NormFloat64())
+			clusters[i].E.Data[j].Mean = factor * float32(rng.NormFloat64())
+			clusters[i].E.Data[j].StdDev = factor * float32(rng.NormFloat64())
 		}
 		clusters[i].U = NewRandomMatrix(input.Cols, 1)
 		for j := range clusters[i].U.Data {
-			clusters[i].U.Data[j].Mean = mean + stddev*float32(rng.NormFloat64())
-			clusters[i].U.Data[j].StdDev = stddev * float32(rng.NormFloat64())
+			clusters[i].U.Data[j].Mean = factor * float32(rng.NormFloat64())
+			clusters[i].U.Data[j].StdDev = factor * float32(rng.NormFloat64())
 		}
 	}
 	Pi = NewRandomMatrix(g.Clusters, input.Rows)
@@ -254,6 +254,11 @@ func (g *GMM) GMM(input Matrix) []int {
 		Pi = pi
 	}
 
+	sort.Slice(samples, func(i, j int) bool {
+		return samples[i].C < samples[j].C
+	})
+	sample := samples[0]
+
 	output := make([]int, input.Rows)
 	for i := 0; i < input.Rows; i++ {
 		row := input.Data[i*input.Cols : (i+1)*input.Cols]
@@ -262,11 +267,6 @@ func (g *GMM) GMM(input Matrix) []int {
 
 		index, max := 0, 0.0
 		for j := 0; j < g.Clusters; j++ {
-			sort.Slice(samples, func(i, j int) bool {
-				return samples[i].C < samples[j].C
-			})
-			sample := samples[0]
-
 			d, _ := Determinant(sample.E[j])
 			det := float32(d)
 			y := MulT(T(MulT(Sub(x, sample.U[j]), sample.E[j])), Sub(x, sample.U[j]))
