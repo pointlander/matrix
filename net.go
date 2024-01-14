@@ -43,7 +43,6 @@ type Sample struct {
 	Entropy float32
 	Neurons Matrix
 	Outputs Matrix
-	Out     Matrix
 }
 
 // CalculateStatistics calculates the statistics of systems
@@ -93,10 +92,8 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		rng := rand.New(rand.NewSource(seed))
 		{
 			neurons := n.Q.SampleDiscrete(rng)
-			outputs := NewMatrix(n.Outputs, 1)
-			out := MulT(neurons, query)
-			copy(q.Data[i*n.Outputs:], out.Data)
-			outputs.Data = append(outputs.Data, out.Data...)
+			outputs := MulT(neurons, query)
+			copy(q.Data[i*n.Outputs:], outputs.Data)
 			systemsQ[i] = Sample{
 				Neurons: neurons,
 				Outputs: outputs,
@@ -104,10 +101,8 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		}
 		{
 			neurons := n.K.SampleDiscrete(rng)
-			outputs := NewMatrix(n.Outputs, 1)
-			out := MulT(neurons, key)
-			copy(k.Data[i*n.Outputs:], out.Data)
-			outputs.Data = append(outputs.Data, out.Data...)
+			outputs := MulT(neurons, key)
+			copy(k.Data[i*n.Outputs:], outputs.Data)
 			systemsK[i] = Sample{
 				Neurons: neurons,
 				Outputs: outputs,
@@ -115,10 +110,8 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		}
 		{
 			neurons := n.V.SampleDiscrete(rng)
-			outputs := NewMatrix(n.Outputs, 1)
-			out := MulT(neurons, value)
-			copy(v.Data[i*n.Outputs:], out.Data)
-			outputs.Data = append(outputs.Data, out.Data...)
+			outputs := MulT(neurons, value)
+			copy(v.Data[i*n.Outputs:], outputs.Data)
 			systemsV[i] = Sample{
 				Neurons: neurons,
 				Outputs: outputs,
@@ -144,14 +137,11 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		<-done
 	}
 
-	outputs, entropies := SelfEntropy(q, k, v)
+	entropies := SelfEntropy(q, k, v)
 	for i, entropy := range entropies {
 		systemsQ[i].Entropy = entropy
-		systemsQ[i].Out = outputs[i]
 		systemsK[i].Entropy = entropy
-		systemsK[i].Out = outputs[i]
 		systemsV[i].Entropy = entropy
-		systemsV[i].Out = outputs[i]
 	}
 	sort.Slice(systemsQ, func(i, j int) bool {
 		return systemsQ[i].Entropy < systemsQ[j].Entropy
