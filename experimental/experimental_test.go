@@ -14,7 +14,7 @@ import (
 
 func TestLUFactor(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
-	a := NewMatrix(0, 2, 2)
+	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
 		3, 8,
 		4, 6,

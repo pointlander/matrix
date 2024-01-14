@@ -82,11 +82,11 @@ func (n Net) CalculateStatistics(systems []Sample) RandomMatrix {
 
 // Fire runs the network
 func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
-	q := NewMatrix(0, n.Outputs, n.Samples)
+	q := NewMatrix(n.Outputs, n.Samples)
 	q.Data = q.Data[:n.Outputs*n.Samples]
-	k := NewMatrix(0, n.Outputs, n.Samples)
+	k := NewMatrix(n.Outputs, n.Samples)
 	k.Data = k.Data[:n.Outputs*n.Samples]
-	v := NewMatrix(0, n.Outputs, n.Samples)
+	v := NewMatrix(n.Outputs, n.Samples)
 	v.Data = v.Data[:n.Outputs*n.Samples]
 	systemsQ := make([]Sample, n.Samples)
 	systemsK := make([]Sample, n.Samples)
@@ -96,7 +96,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		rng := rand.New(rand.NewSource(seed))
 		{
 			neurons := n.Q.SampleDiscrete(rng)
-			outputs := NewMatrix(0, n.Outputs, 1)
+			outputs := NewMatrix(n.Outputs, 1)
 			out := MulT(neurons, query)
 			copy(q.Data[i*n.Outputs:], out.Data)
 			outputs.Data = append(outputs.Data, out.Data...)
@@ -107,7 +107,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		}
 		{
 			neurons := n.K.SampleDiscrete(rng)
-			outputs := NewMatrix(0, n.Outputs, 1)
+			outputs := NewMatrix(n.Outputs, 1)
 			out := MulT(neurons, key)
 			copy(k.Data[i*n.Outputs:], out.Data)
 			outputs.Data = append(outputs.Data, out.Data...)
@@ -118,7 +118,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		}
 		{
 			neurons := n.V.SampleDiscrete(rng)
-			outputs := NewMatrix(0, n.Outputs, 1)
+			outputs := NewMatrix(n.Outputs, 1)
 			out := MulT(neurons, value)
 			copy(v.Data[i*n.Outputs:], out.Data)
 			outputs.Data = append(outputs.Data, out.Data...)

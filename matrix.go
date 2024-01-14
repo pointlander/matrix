@@ -60,7 +60,7 @@ func NewRandomMatrix(cols, rows int) RandomMatrix {
 
 // Sample samples a matrix
 func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
-	sample := NewMatrix(0, r.Cols, r.Rows)
+	sample := NewMatrix(r.Cols, r.Rows)
 	for _, v := range r.Data {
 		sample.Data = append(sample.Data, float32(rng.NormFloat64())*v.StdDev+v.Mean)
 	}
@@ -69,7 +69,7 @@ func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
 
 // SampleDiscrete generates a discrete matrix sample
 func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
-	sample := NewMatrix(0, r.Cols, r.Rows)
+	sample := NewMatrix(r.Cols, r.Rows)
 	for _, value := range r.Data {
 		v := float32(rng.NormFloat64())*value.StdDev + value.Mean
 		if v > 0 {
@@ -84,24 +84,17 @@ func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
 
 // Matrix is a float32 matrix
 type Matrix struct {
-	Cols   int
-	Rows   int
-	Data   []float32
-	States [][]float32
+	Cols int
+	Rows int
+	Data []float32
 }
 
 // NewMatrix32 creates a new float32 matrix
-func NewMatrix(states, cols, rows int) Matrix {
+func NewMatrix(cols, rows int) Matrix {
 	m := Matrix{
 		Cols: cols,
 		Rows: rows,
 		Data: make([]float32, 0, cols*rows),
-	}
-	if states > 0 {
-		m.States = make([][]float32, states)
-		for i := range m.States {
-			m.States[i] = make([]float32, cols*rows)
-		}
 	}
 	return m
 }
@@ -368,7 +361,7 @@ func SelfEntropy(Q, K, V Matrix) ([]Matrix, []float32) {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			entropies[j] = vector.Dot(values, V)
 		}
-		output := NewMatrix(0, V.Cols, 1)
+		output := NewMatrix(V.Cols, 1)
 		output.Data = append(output.Data, entropies...)
 		outputs = append(outputs, output)
 		softmax(entropies)
@@ -431,9 +424,9 @@ func TaylorSoftmax(m Matrix) Matrix {
 // https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
 func LU(mat Matrix) (Matrix, Matrix) {
 	n := mat.Cols
-	lower := NewMatrix(0, n, n)
+	lower := NewMatrix(n, n)
 	lower.Data = lower.Data[:n*n]
-	upper := NewMatrix(0, n, n)
+	upper := NewMatrix(n, n)
 	upper.Data = upper.Data[:n*n]
 	for i := 0; i < n; i++ {
 		for k := i; k < n; k++ {
@@ -480,7 +473,7 @@ type Multi struct {
 // NewMulti make a new multi
 func NewMulti(vars int) Multi {
 	factor := float32(math.Sqrt(2.0 / float64(vars)))
-	a := NewMatrix(0, vars, vars)
+	a := NewMatrix(vars, vars)
 	a.Data = a.Data[:cap(a.Data)]
 	for i := 0; i < vars; i++ {
 		for j := 0; j < vars; j++ {
@@ -489,7 +482,7 @@ func NewMulti(vars int) Multi {
 			}
 		}
 	}
-	u := NewMatrix(1, vars, 1)
+	u := NewMatrix(vars, 1)
 	u.Data = u.Data[:cap(u.Data)]
 	return Multi{
 		A: a,
@@ -500,9 +493,9 @@ func NewMulti(vars int) Multi {
 // NewMultiFromData creates a new multivariate distribution
 func NewMultiFromData(vars [][]float32) Multi {
 	length := len(vars)
-	e := NewMatrix(1, length, length)
+	e := NewMatrix(length, length)
 	e.Data = e.Data[:cap(e.Data)]
-	u := NewMatrix(1, length, 1)
+	u := NewMatrix(length, 1)
 	u.Data = u.Data[:cap(u.Data)]
 	for i, v := range vars {
 		for _, vv := range v {
@@ -592,7 +585,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 // Sample samples from the multivariate distribution
 func (m Multi) Sample(rng *rand.Rand) Matrix {
 	length := m.U.Cols
-	s := NewMatrix(0, length, 1)
+	s := NewMatrix(length, 1)
 	for i := 0; i < length; i++ {
 		s.Data = append(s.Data, float32(rng.NormFloat64()))
 	}

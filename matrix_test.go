@@ -11,7 +11,7 @@ import (
 )
 
 func TestLU(t *testing.T) {
-	a := NewMatrix(0, 2, 2)
+	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
 		3, 8,
 		4, 6,
@@ -31,7 +31,7 @@ func TestLU(t *testing.T) {
 		t.Fatal("result should be 6", b.Data[3])
 	}
 
-	a = NewMatrix(0, 3, 3)
+	a = NewMatrix(3, 3)
 	a.Data = append(a.Data,
 		6, 1, 1,
 		4, -2, 5,
@@ -42,7 +42,7 @@ func TestLU(t *testing.T) {
 }
 
 func TestDeterminant(t *testing.T) {
-	a := NewMatrix(0, 2, 2)
+	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
 		3, 8,
 		4, 6,
@@ -55,7 +55,7 @@ func TestDeterminant(t *testing.T) {
 		t.Fatal("determinant should be -14", d)
 	}
 
-	a = NewMatrix(0, 3, 3)
+	a = NewMatrix(3, 3)
 	a.Data = append(a.Data,
 		6, 1, 1,
 		4, -2, 5,
@@ -69,7 +69,7 @@ func TestDeterminant(t *testing.T) {
 		t.Fatal("determinant should be -306", d)
 	}
 
-	a = NewMatrix(0, 4, 4)
+	a = NewMatrix(4, 4)
 	a.Data = append(a.Data,
 		1, 3, 1, 2,
 		5, 8, 5, 3,
@@ -90,8 +90,8 @@ func TestMulti(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		t.Log(i)
 		multi := Multi{
-			E: NewMatrix(1, 2, 2),
-			U: NewMatrix(1, 2, 1),
+			E: NewMatrix(2, 2),
+			U: NewMatrix(2, 1),
 		}
 		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
 		multi.U.Data = append(multi.U.Data, 0, 0)
@@ -117,8 +117,8 @@ func BenchmarkMulti(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		multi := Multi{
-			E: NewMatrix(1, 2, 2),
-			U: NewMatrix(1, 2, 1),
+			E: NewMatrix(2, 2),
+			U: NewMatrix(2, 1),
 		}
 		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
 		multi.U.Data = append(multi.U.Data, 0, 0)
