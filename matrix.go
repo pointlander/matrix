@@ -486,17 +486,23 @@ func Determinant(a Matrix) (float32, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	const window = 256
+	square := MulT(a, a)
+	sum := 0.0
+	for _, value := range square.Data {
+		sum += float64(value) * float64(value)
+	}
+	length := float32(math.Sqrt(sum))
 	rai := NewRandomMatrix(a.Cols, a.Rows)
 	for i := range rai.Data {
 		rai.Data[i].Mean = 0
-		rai.Data[i].StdDev = float32(math.Pow(2, float64(len(a.Data)))) / (a.Data[i] * float32(a.Cols))
+		rai.Data[i].StdDev = length
 	}
 	identity := NewIdentityMatrix(a.Cols)
 	type Sample struct {
 		Cost float32
 		AI   Matrix
 	}
-	samples := make([]Sample, 1024)
+	samples := make([]Sample, 2048)
 	for i := 0; i < 8*1024; i++ {
 		for j := range samples {
 			sai := rai.Sample(rng)
