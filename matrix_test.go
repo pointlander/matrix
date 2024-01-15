@@ -94,17 +94,42 @@ func TestInverse(t *testing.T) {
 	)
 	ai := Inverse(rng, a)
 	b := MulT(a, ai)
-	if math.Round(float64(b.Data[0])) != 1 {
-		t.Fatal("result should be 1", b.Data[0])
+	for i := 0; i < b.Rows; i++ {
+		for j := 0; j < b.Cols; j++ {
+			value := float64(b.Data[i*b.Cols+j])
+			if i == j {
+				if math.Round(value) != 1 {
+					t.Fatalf("result %d,%d should be 1 but is %f", i, j, value)
+				}
+			} else {
+				if math.Round(value) != 0 {
+					t.Fatalf("result %d,%d should be 0 but is %f", i, j, value)
+				}
+			}
+		}
 	}
-	if math.Round(float64(b.Data[1])) != 0 {
-		t.Fatal("result should be 0", b.Data[1])
-	}
-	if math.Round(float64(b.Data[2])) != 0 {
-		t.Fatal("result should be 0", b.Data[2])
-	}
-	if math.Round(float64(b.Data[3])) != 1 {
-		t.Fatal("result should be 1", b.Data[3])
+
+	a = NewMatrix(3, 3)
+	a.Data = append(a.Data,
+		6, 1, 1,
+		4, -2, 5,
+		2, 8, 7,
+	)
+	ai = Inverse(rng, a)
+	b = MulT(a, ai)
+	for i := 0; i < b.Rows; i++ {
+		for j := 0; j < b.Cols; j++ {
+			value := float64(b.Data[i*b.Cols+j])
+			if i == j {
+				if math.Round(value) != 1 {
+					t.Fatalf("result %d,%d should be 1 but is %f", i, j, value)
+				}
+			} else {
+				if math.Round(value) != 0 {
+					t.Fatalf("result %d,%d should be 0 but is %f", i, j, value)
+				}
+			}
+		}
 	}
 }
 
