@@ -85,6 +85,29 @@ func TestDeterminant(t *testing.T) {
 	}
 }
 
+func TestInverse(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	a := NewMatrix(2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	ai := Inverse(rng, a)
+	b := MulT(a, ai)
+	if math.Round(float64(b.Data[0])) != 1 {
+		t.Fatal("result should be 1", b.Data[0])
+	}
+	if math.Round(float64(b.Data[1])) != 0 {
+		t.Fatal("result should be 0", b.Data[1])
+	}
+	if math.Round(float64(b.Data[2])) != 0 {
+		t.Fatal("result should be 0", b.Data[2])
+	}
+	if math.Round(float64(b.Data[3])) != 1 {
+		t.Fatal("result should be 1", b.Data[3])
+	}
+}
+
 func TestMulti(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	for i := 0; i < 32; i++ {

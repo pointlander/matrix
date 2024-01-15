@@ -111,6 +111,20 @@ func NewZeroMatrix(cols, rows int) Matrix {
 	}
 }
 
+// NewIdentityMatrix creates a new float32 identity matrix of zeros
+func NewIdentityMatrix(size int) Matrix {
+	length := size * size
+	data := make([]float32, length, length)
+	for i := 0; i < size; i++ {
+		data[i*size+i] = 1
+	}
+	return Matrix{
+		Cols: size,
+		Rows: size,
+		Data: data,
+	}
+}
+
 // Size is the size of the float32 matrix
 func (m Matrix) Size() int {
 	return m.Cols * m.Rows
@@ -467,6 +481,78 @@ func Determinant(a Matrix) (float32, error) {
 		det *= l.Data[i*l.Cols+i] * u.Data[i*l.Cols+i]
 	}
 	return det, nil
+}
+
+// Inverse computes the matrix inverse
+func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
+	const window = 256
+	mean, stddev := float32(0), float32(0)
+	for _, value := range a.Data {
+		mean += value
+	}
+	mean /= float32(len(a.Data))
+	for _, value := range a.Data {
+		diff := mean - value
+		stddev += diff * diff
+	}
+	stddev = float32(math.Sqrt(float64(stddev)))
+	rai := NewRandomMatrix(a.Cols, a.Rows)
+	for i := range rai.Data {
+		rai.Data[i].Mean = mean
+		rai.Data[i].StdDev = stddev
+	}
+	identity := NewIdentityMatrix(a.Cols)
+	type Sample struct {
+		Cost float32
+		AI   Matrix
+	}
+	samples := make([]Sample, 1024)
+	for i := 0; i < 8*1024; i++ {
+		for j := range samples {
+			sai := rai.Sample(rng)
+			cost := Avg(Quadratic(MulT(a, sai), identity))
+			samples[j].AI = sai
+			samples[j].Cost = cost.Data[0]
+		}
+		sort.Slice(samples, func(i, j int) bool {
+			return samples[i].Cost < samples[j].Cost
+		})
+
+		weights, sum := make([]float32, window), float32(0)
+		for i := range weights {
+			sum += 1 / samples[i].Cost
+			weights[i] = 1 / samples[i].Cost
+		}
+		for i := range weights {
+			weights[i] /= sum
+		}
+
+		aa := NewRandomMatrix(a.Cols, a.Rows)
+		for j := range aa.Data {
+			aa.Data[j].StdDev = 0
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].AI.Data {
+				aa.Data[j].Mean += weights[i] * value
+			}
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].AI.Data {
+				diff := aa.Data[j].Mean - value
+				aa.Data[j].StdDev += weights[i] * diff * diff
+			}
+		}
+		for i := range aa.Data {
+			aa.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
+		}
+		rai = aa
+
+		if samples[0].Cost < 1e-18 {
+			break
+		}
+	}
+	return samples[0].AI
 }
 
 // Multi is a multivariate distribution
