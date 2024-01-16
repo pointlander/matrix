@@ -577,23 +577,24 @@ func NewMulti(vars int) Multi {
 }
 
 // NewMultiFromData creates a new multivariate distribution
-func NewMultiFromData(vars [][]float32) Multi {
-	length := len(vars)
+func NewMultiFromData(vars Matrix) Multi {
+	length := vars.Rows
 	e := NewZeroMatrix(length, length)
 	u := NewZeroMatrix(length, 1)
-	for i, v := range vars {
-		for _, vv := range v {
-			u.Data[i] += vv
+	for i := 0; i < vars.Rows; i++ {
+		for j := 0; j < vars.Cols; j++ {
+			u.Data[i] += vars.Data[i*vars.Cols+j]
 		}
 	}
-	size := len(vars[0])
+	size := vars.Cols
 	for i := range u.Data {
 		u.Data[i] /= float32(size)
 	}
 	for i := 0; i < length; i++ {
 		for j := i; j < length; j++ {
 			for k := 0; k < size; k++ {
-				e.Data[i*length+j] += (vars[i][k] - u.Data[i]) * (vars[j][k] - u.Data[j])
+				e.Data[i*length+j] += (vars.Data[i*vars.Cols+k] - u.Data[i]) *
+					(vars.Data[j*vars.Cols+k] - u.Data[j])
 			}
 			e.Data[i*length+j] /= float32(size)
 		}
