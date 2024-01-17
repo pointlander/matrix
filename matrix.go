@@ -503,7 +503,6 @@ func Determinant(a Matrix) (float32, error) {
 
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
-	const window = 256
 	const N = 32
 	square := MulT(a, a)
 	sum := 0.0
@@ -530,7 +529,8 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		X    []Matrix
 	}
 	samples := make([]Sample, N*N*N)
-	for i := 0; i < 8*1024; i++ {
+	last := float32(-1.0)
+	for {
 		xx := make([][]Matrix, len(x))
 		for j := range xx {
 			xx[j] = make([]Matrix, N)
@@ -566,10 +566,28 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			return samples[i].Cost < samples[j].Cost
 		})
 
+		mean, stddev := 0.0, 0.0
+		for i := range samples {
+			mean += float64(samples[i].Cost)
+		}
+		mean /= float64(len(samples))
+		for i := range samples {
+			diff := mean - float64(samples[i].Cost)
+			stddev += diff * diff
+		}
+		stddev /= float64(len(samples))
+		stddev = math.Sqrt(stddev)
+		window := 0
+		for float64(samples[window].Cost) < stddev {
+			window++
+		}
+
 		weights, sum := make([]float32, window), float32(0)
 		for i := range weights {
-			sum += 1 / samples[i].Cost
-			weights[i] = 1 / samples[i].Cost
+			diff := (float64(samples[i].Cost) - mean) / stddev
+			w := float32(math.Exp(-diff*diff/2) / (stddev * math.Sqrt(2*math.Pi)))
+			sum += w
+			weights[i] = w
 		}
 		for i := range weights {
 			weights[i] /= sum
@@ -598,9 +616,10 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			x[j] = nx
 		}
 
-		if samples[0].Cost < 1e-3 {
+		if last > 0 && math.Abs(float64(last-samples[0].Cost)) < 1e-3 {
 			break
 		}
+		last = samples[0].Cost
 	}
 	return Add(samples[0].X[0], H(samples[0].X[1], samples[0].X[2]))
 }
