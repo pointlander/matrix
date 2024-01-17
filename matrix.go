@@ -634,7 +634,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		}
 		z = nz
 
-		if samples[0].Cost < 1e-6 {
+		if samples[0].Cost < 1e-3 {
 			break
 		}
 	}
