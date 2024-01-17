@@ -656,19 +656,53 @@ func NewMultiFromData(vars Matrix) Multi {
 
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	length := m.U.Cols
-	a := NewRandomMatrix(length, length)
-	type Sample struct {
-		Cost   float32
-		Matrix Matrix
+	const N = 16
+	square := MulT(m.E, m.E)
+	sum := 0.0
+	for _, value := range square.Data {
+		sum += float64(value) * float64(value)
 	}
-	samples := make([]Sample, Samples)
+	length := float32(math.Sqrt(sum))
+	deviations := []float32{
+		length / 2,
+		float32(math.Sqrt(float64(length / 2))),
+		float32(math.Sqrt(float64(length / 2))),
+	}
+	x := make([]RandomMatrix, len(deviations))
+	for i, stddev := range deviations {
+		x[i] = NewRandomMatrix(m.U.Cols, m.U.Cols)
+		for j := range x[i].Data {
+			x[i].Data[j].Mean = 0
+			x[i].Data[j].StdDev = stddev
+		}
+	}
+	type Sample struct {
+		Cost float32
+		X    []Matrix
+	}
+	samples := make([]Sample, N*N*N)
 	for i := 0; i < 1024; i++ {
-		for j := range samples {
-			sample := a.Sample(rng)
-			cost := Avg(Quadratic(MulT(sample, T(sample)), m.E))
-			samples[j].Matrix = sample
-			samples[j].Cost = cost.Data[0]
+		xx := make([][]Matrix, len(x))
+		for j := range xx {
+			xx[j] = make([]Matrix, N)
+			for k := range xx[j] {
+				xx[j][k] = x[j].Sample(rng)
+			}
+		}
+		index := 0
+		for _, x := range xx[0] {
+			for _, y := range xx[1] {
+				for _, z := range xx[2] {
+					sample := Add(x, H(y, z))
+					cost := Avg(Quadratic(MulT(sample, T(sample)), m.E))
+					samples[index].X = make([]Matrix, len(xx))
+					samples[index].X[0] = x
+					samples[index].X[1] = y
+					samples[index].X[2] = z
+					samples[index].Cost = cost.Data[0]
+					index++
+				}
+			}
 		}
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Cost < samples[j].Cost
@@ -684,31 +718,33 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			weights[i] /= sum
 		}
 
-		aa := NewRandomMatrix(length, length)
-		for j := range aa.Data {
-			aa.Data[j].StdDev = 0
-		}
-		for i := range samples[:Window] {
-			for j, value := range samples[i].Matrix.Data {
-				aa.Data[j].Mean += weights[i] * value
+		for j := range xx {
+			nx := NewRandomMatrix(m.U.Cols, m.U.Cols)
+			for k := range nx.Data {
+				nx.Data[k].StdDev = 0
 			}
-		}
-		for i := range samples[:Window] {
-			for j, value := range samples[i].Matrix.Data {
-				diff := aa.Data[j].Mean - value
-				aa.Data[j].StdDev += weights[i] * diff * diff
+			for k := range samples[:Window] {
+				for l, value := range samples[k].X[j].Data {
+					nx.Data[l].Mean += weights[k] * value
+				}
 			}
+			for k := range samples[:Window] {
+				for l, value := range samples[k].X[j].Data {
+					diff := nx.Data[l].Mean - value
+					nx.Data[l].StdDev += weights[k] * diff * diff
+				}
+			}
+			for k := range nx.Data {
+				nx.Data[k].StdDev /= (float32(Window) - 1.0) / float32(Window)
+				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
+			}
+			x[j] = nx
 		}
-		for i := range aa.Data {
-			aa.Data[i].StdDev /= (Window - 1.0) / Window
-			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
-		}
-		a = aa
 		if samples[0].Cost < 1e-6 {
 			break
 		}
 	}
-	m.A = samples[0].Matrix
+	m.A = Add(samples[0].X[0], H(samples[0].X[1], samples[0].X[2]))
 }
 
 // Sample samples from the multivariate distribution
