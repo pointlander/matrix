@@ -538,8 +538,8 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 				xx[j][k] = x[j].Sample(rng)
 			}
 		}
-		index := 0
-		for _, x := range xx[0] {
+		done := make(chan bool, 8)
+		process := func(index int, x Matrix) {
 			for _, y := range xx[1] {
 				for _, z := range xx[2] {
 					cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
@@ -551,7 +551,17 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 					index++
 				}
 			}
+			done <- true
 		}
+		index := 0
+		for _, x := range xx[0] {
+			go process(index, x)
+			index += N * N
+		}
+		for j := 0; j < N; j++ {
+			<-done
+		}
+
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Cost < samples[j].Cost
 		})
@@ -689,8 +699,8 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 				xx[j][k] = x[j].Sample(rng)
 			}
 		}
-		index := 0
-		for _, x := range xx[0] {
+		done := make(chan bool, 8)
+		process := func(index int, x Matrix) {
 			for _, y := range xx[1] {
 				for _, z := range xx[2] {
 					sample := Add(x, H(y, z))
@@ -703,6 +713,15 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 					index++
 				}
 			}
+			done <- true
+		}
+		index := 0
+		for _, x := range xx[0] {
+			go process(index, x)
+			index += N * N
+		}
+		for j := 0; j < N; j++ {
+			<-done
 		}
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Cost < samples[j].Cost
