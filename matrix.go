@@ -205,6 +205,24 @@ func Sub(m Matrix, n Matrix) Matrix {
 	return o
 }
 
+// H is the hadamard product of two matricies
+func H(m Matrix, n Matrix) Matrix {
+	lena, lenb := len(m.Data), len(n.Data)
+	if lena%lenb != 0 {
+		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
+	}
+
+	o := Matrix{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for i, value := range m.Data {
+		o.Data = append(o.Data, value*n.Data[i%lenb])
+	}
+	return o
+}
+
 // Sigmoid computes the sigmoid of a matrix
 func Sigmoid(m Matrix) Matrix {
 	o := Matrix{
@@ -486,29 +504,59 @@ func Determinant(a Matrix) (float32, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	const window = 256
+	const N = 32
 	square := MulT(a, a)
 	sum := 0.0
 	for _, value := range square.Data {
 		sum += float64(value) * float64(value)
 	}
 	length := float32(math.Sqrt(sum))
-	rai := NewRandomMatrix(a.Cols, a.Rows)
-	for i := range rai.Data {
-		rai.Data[i].Mean = 0
-		rai.Data[i].StdDev = length
+	x := NewRandomMatrix(a.Cols, a.Rows)
+	for i := range x.Data {
+		x.Data[i].Mean = 0
+		x.Data[i].StdDev = length / 2
+	}
+	y := NewRandomMatrix(a.Cols, a.Rows)
+	for i := range y.Data {
+		y.Data[i].Mean = 0
+		y.Data[i].StdDev = float32(math.Sqrt(float64(length / 2)))
+	}
+	z := NewRandomMatrix(a.Cols, a.Rows)
+	for i := range z.Data {
+		z.Data[i].Mean = 0
+		z.Data[i].StdDev = float32(math.Sqrt(float64(length / 2)))
 	}
 	identity := NewIdentityMatrix(a.Cols)
 	type Sample struct {
 		Cost float32
-		AI   Matrix
+		X    Matrix
+		Y    Matrix
+		Z    Matrix
 	}
-	samples := make([]Sample, 2048)
+	samples := make([]Sample, N*N*N)
 	for i := 0; i < 8*1024; i++ {
-		for j := range samples {
-			sai := rai.Sample(rng)
-			cost := Avg(Quadratic(MulT(a, sai), identity))
-			samples[j].AI = sai
-			samples[j].Cost = cost.Data[0]
+		xx, yy, zz := [N]Matrix{}, [N]Matrix{}, [N]Matrix{}
+		for j := range xx {
+			xx[j] = x.Sample(rng)
+		}
+		for j := range yy {
+			yy[j] = y.Sample(rng)
+		}
+		for j := range zz {
+			zz[j] = z.Sample(rng)
+		}
+		index := 0
+		for _, x := range xx {
+			for _, y := range yy {
+				for _, z := range zz {
+					cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+					samples[index].X = x
+					samples[index].Y = y
+					samples[index].Z = z
+					samples[index].Cost = cost.Data[0]
+					index++
+				}
+			}
 		}
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Cost < samples[j].Cost
@@ -523,32 +571,74 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			weights[i] /= sum
 		}
 
-		aa := NewRandomMatrix(a.Cols, a.Rows)
-		for j := range aa.Data {
-			aa.Data[j].StdDev = 0
+		nx := NewRandomMatrix(a.Cols, a.Rows)
+		for j := range nx.Data {
+			nx.Data[j].StdDev = 0
 		}
 		for i := range samples[:window] {
-			for j, value := range samples[i].AI.Data {
-				aa.Data[j].Mean += weights[i] * value
+			for j, value := range samples[i].X.Data {
+				nx.Data[j].Mean += weights[i] * value
 			}
 		}
 		for i := range samples[:window] {
-			for j, value := range samples[i].AI.Data {
-				diff := aa.Data[j].Mean - value
-				aa.Data[j].StdDev += weights[i] * diff * diff
+			for j, value := range samples[i].X.Data {
+				diff := nx.Data[j].Mean - value
+				nx.Data[j].StdDev += weights[i] * diff * diff
 			}
 		}
-		for i := range aa.Data {
-			aa.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-			aa.Data[i].StdDev = float32(math.Sqrt(float64(aa.Data[i].StdDev)))
+		for i := range nx.Data {
+			nx.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+			nx.Data[i].StdDev = float32(math.Sqrt(float64(nx.Data[i].StdDev)))
 		}
-		rai = aa
+		x = nx
 
-		if samples[0].Cost < 1e-18 {
+		ny := NewRandomMatrix(a.Cols, a.Rows)
+		for j := range ny.Data {
+			ny.Data[j].StdDev = 0
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].Y.Data {
+				ny.Data[j].Mean += weights[i] * value
+			}
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].Y.Data {
+				diff := ny.Data[j].Mean - value
+				ny.Data[j].StdDev += weights[i] * diff * diff
+			}
+		}
+		for i := range ny.Data {
+			ny.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+			ny.Data[i].StdDev = float32(math.Sqrt(float64(ny.Data[i].StdDev)))
+		}
+		y = ny
+
+		nz := NewRandomMatrix(a.Cols, a.Rows)
+		for j := range nz.Data {
+			nz.Data[j].StdDev = 0
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].Z.Data {
+				nz.Data[j].Mean += weights[i] * value
+			}
+		}
+		for i := range samples[:window] {
+			for j, value := range samples[i].Z.Data {
+				diff := nz.Data[j].Mean - value
+				nz.Data[j].StdDev += weights[i] * diff * diff
+			}
+		}
+		for i := range nz.Data {
+			nz.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
+			nz.Data[i].StdDev = float32(math.Sqrt(float64(nz.Data[i].StdDev)))
+		}
+		z = nz
+
+		if samples[0].Cost < 1e-6 {
 			break
 		}
 	}
-	return samples[0].AI
+	return Add(samples[0].X, H(samples[0].Y, samples[0].Z))
 }
 
 // Multi is a multivariate distribution
