@@ -685,7 +685,7 @@ func NewMultiFromData(vars Matrix) Multi {
 
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	const N = 16
+	const N = 32
 	square := MulT(m.E, m.E)
 	sum := 0.0
 	for _, value := range square.Data {
@@ -710,7 +710,8 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		X    []Matrix
 	}
 	samples := make([]Sample, N*N*N)
-	for i := 0; i < 1024; i++ {
+	last := float32(-1.0)
+	for {
 		xx := make([][]Matrix, len(x))
 		for j := range xx {
 			xx[j] = make([]Matrix, N)
@@ -746,11 +747,29 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			return samples[i].Cost < samples[j].Cost
 		})
 
+		mean, stddev := 0.0, 0.0
+		for i := range samples {
+			mean += float64(samples[i].Cost)
+		}
+		mean /= float64(len(samples))
+		for i := range samples {
+			diff := mean - float64(samples[i].Cost)
+			stddev += diff * diff
+		}
+		stddev /= float64(len(samples))
+		stddev = math.Sqrt(stddev)
+		window := 0
+		for float64(samples[window].Cost) < stddev {
+			window++
+		}
+
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
-		weights, sum := make([]float32, Window), float32(0)
+		weights, sum := make([]float32, window), float32(0)
 		for i := range weights {
-			sum += 1 / samples[i].Cost
-			weights[i] = 1 / samples[i].Cost
+			diff := (float64(samples[i].Cost) - mean) / stddev
+			w := float32(math.Exp(-diff*diff/2) / (stddev * math.Sqrt(2*math.Pi)))
+			sum += w
+			weights[i] = w
 		}
 		for i := range weights {
 			weights[i] /= sum
@@ -761,26 +780,28 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			for k := range nx.Data {
 				nx.Data[k].StdDev = 0
 			}
-			for k := range samples[:Window] {
+			for k := range samples[:window] {
 				for l, value := range samples[k].X[j].Data {
 					nx.Data[l].Mean += weights[k] * value
 				}
 			}
-			for k := range samples[:Window] {
+			for k := range samples[:window] {
 				for l, value := range samples[k].X[j].Data {
 					diff := nx.Data[l].Mean - value
 					nx.Data[l].StdDev += weights[k] * diff * diff
 				}
 			}
 			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float32(Window) - 1.0) / float32(Window)
+				nx.Data[k].StdDev /= (float32(window) - 1.0) / float32(window)
 				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
 			}
 			x[j] = nx
 		}
-		if samples[0].Cost < 1e-6 {
+
+		if last > 0 && math.Abs(float64(last-samples[0].Cost)) < 1e-6 {
 			break
 		}
+		last = samples[0].Cost
 	}
 	m.A = Add(samples[0].X[0], H(samples[0].X[1], samples[0].X[2]))
 }

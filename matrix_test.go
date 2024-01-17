@@ -146,16 +146,16 @@ func TestMulti(t *testing.T) {
 		multi.LearnA(rng, nil)
 		e := MulT(multi.A, T(multi.A))
 		if math.Round(float64(e.Data[0])*10) != 10 {
-			t.Fatal("result should be 1")
+			t.Fatal("result should be 1", e.Data[0])
 		}
 		if math.Round(float64(e.Data[1])*10) != 6 {
-			t.Fatal("result should be 6")
+			t.Fatal("result should be 6", e.Data[1])
 		}
 		if math.Round(float64(e.Data[2])*10) != 6 {
-			t.Fatal("result should be 6")
+			t.Fatal("result should be 6", e.Data[2])
 		}
 		if math.Round(float64(e.Data[3])*10) != 20 {
-			t.Fatal("result should be 2")
+			t.Fatal("result should be 2", e.Data[3])
 		}
 	}
 }
