@@ -578,8 +578,12 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
 		window := 0
-		for float64(samples[window].Cost) < stddev {
+		for float64(samples[window].Cost) < mean {
 			window++
+		}
+		window /= 10
+		if window < 8 {
+			window = 8
 		}
 
 		weights, sum := make([]float32, window), float32(0)
@@ -759,8 +763,12 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
 		window := 0
-		for float64(samples[window].Cost) < stddev {
+		for float64(samples[window].Cost) < mean {
 			window++
+		}
+		window /= 10
+		if window < 8 {
+			window = 8
 		}
 
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel

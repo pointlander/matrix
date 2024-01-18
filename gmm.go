@@ -16,7 +16,6 @@ import (
 type GMM struct {
 	Clusters int
 	Epochs   int
-	Window   int
 	Samples  int
 	Rng      *rand.Rand
 }
@@ -26,7 +25,6 @@ func NewGMM() GMM {
 	return GMM{
 		Clusters: 20,
 		Epochs:   128,
-		Window:   8,
 		Samples:  512,
 		Rng:      rand.New(rand.NewSource(3)),
 	}
@@ -204,8 +202,8 @@ func (g *GMM) GMM(input Matrix) []int {
 			window++
 		}
 		window /= 10
-		if window < g.Window {
-			window = g.Window
+		if window < 8 {
+			window = 8
 		}
 
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
