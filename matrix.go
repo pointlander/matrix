@@ -503,7 +503,10 @@ func Determinant(a Matrix) (float32, error) {
 
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
-	const N = 32
+	const (
+		N      = 32
+		Length = N * N * N
+	)
 	square := MulT(a, a)
 	sum := 0.0
 	for _, value := range square.Data {
@@ -528,7 +531,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		Cost float32
 		X    []Matrix
 	}
-	samples := make([]Sample, N*N*N)
+	samples := make([]Sample, Length, Length)
 	last := float32(-1.0)
 	for {
 		xx := make([][]Matrix, len(x))
@@ -578,8 +581,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
 
-		const window = N * N * N
-		weights, sum := make([]float32, window), float32(0)
+		weights, sum := make([]float32, Length, Length), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].Cost) - mean) / stddev
 			w := float32(math.Exp(-diff*diff/2) * math.Exp(-float64(i)) / (stddev * math.Sqrt(2*math.Pi)))
@@ -595,19 +597,19 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			for k := range nx.Data {
 				nx.Data[k].StdDev = 0
 			}
-			for k := range samples[:window] {
+			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
 					nx.Data[l].Mean += weights[k] * value
 				}
 			}
-			for k := range samples[:window] {
+			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
 					diff := nx.Data[l].Mean - value
 					nx.Data[l].StdDev += weights[k] * diff * diff
 				}
 			}
 			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float32(window) - 1.0) / float32(window)
+				nx.Data[k].StdDev /= (float32(Length) - 1.0) / float32(Length)
 				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
 			}
 			x[j] = nx
@@ -682,7 +684,10 @@ func NewMultiFromData(vars Matrix) Multi {
 
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	const N = 32
+	const (
+		N      = 32
+		Length = N * N * N
+	)
 	square := MulT(m.E, m.E)
 	sum := 0.0
 	for _, value := range square.Data {
@@ -706,7 +711,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		Cost float32
 		X    []Matrix
 	}
-	samples := make([]Sample, N*N*N)
+	samples := make([]Sample, Length, Length)
 	last := float32(-1.0)
 	for {
 		xx := make([][]Matrix, len(x))
@@ -756,9 +761,8 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
 
-		const window = N * N * N
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
-		weights, sum := make([]float32, window), float32(0)
+		weights, sum := make([]float32, Length, Length), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].Cost) - mean) / stddev
 			w := float32(math.Exp(-diff*diff/2) * math.Exp(-float64(i)) / (stddev * math.Sqrt(2*math.Pi)))
@@ -774,19 +778,19 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			for k := range nx.Data {
 				nx.Data[k].StdDev = 0
 			}
-			for k := range samples[:window] {
+			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
 					nx.Data[l].Mean += weights[k] * value
 				}
 			}
-			for k := range samples[:window] {
+			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
 					diff := nx.Data[l].Mean - value
 					nx.Data[l].StdDev += weights[k] * diff * diff
 				}
 			}
 			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float32(window) - 1.0) / float32(window)
+				nx.Data[k].StdDev /= (float32(Length) - 1.0) / float32(Length)
 				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
 			}
 			x[j] = nx
