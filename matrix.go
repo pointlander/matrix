@@ -577,19 +577,12 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		}
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
-		window := 0
-		for float64(samples[window].Cost) < mean {
-			window++
-		}
-		window /= 10
-		if window < 8 {
-			window = 8
-		}
 
+		const window = N * N * N
 		weights, sum := make([]float32, window), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].Cost) - mean) / stddev
-			w := float32(math.Exp(-diff*diff/2) / (stddev * math.Sqrt(2*math.Pi)))
+			w := float32(math.Exp(-diff*diff/2) * math.Exp(-float64(i)) / (stddev * math.Sqrt(2*math.Pi)))
 			sum += w
 			weights[i] = w
 		}
