@@ -584,7 +584,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		weights, sum := make([]float32, Length, Length), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].Cost) - mean) / stddev
-			w := float32(math.Exp(-diff*diff/2) * math.Exp(-float64(i)) / (stddev * math.Sqrt(2*math.Pi)))
+			w := float32(math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
 			sum += w
 			weights[i] = w
 		}
@@ -765,7 +765,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		weights, sum := make([]float32, Length, Length), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].Cost) - mean) / stddev
-			w := float32(math.Exp(-diff*diff/2) * math.Exp(-float64(i)) / (stddev * math.Sqrt(2*math.Pi)))
+			w := float32(math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
 			sum += w
 			weights[i] = w
 		}
