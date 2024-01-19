@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"runtime"
@@ -66,18 +67,18 @@ func (n Net) CalculateStatistics(mean, stddev float64, systems []Sample) RandomM
 
 		for i := range systems {
 			for j, value := range systems[i].Neurons.Data {
-				statistics.Data[j].Mean += float32(weights[i]) * value
+				statistics.Data[j].Mean += weights[i] * float64(value)
 			}
 		}
 		for i := range systems {
 			for j, value := range systems[i].Neurons.Data {
-				diff := statistics.Data[j].Mean - value
-				statistics.Data[j].StdDev += float32(weights[i]) * diff * diff
+				diff := statistics.Data[j].Mean - float64(value)
+				statistics.Data[j].StdDev += weights[i] * diff * diff
 			}
 		}
 		for i := range statistics.Data {
-			statistics.Data[i].StdDev /= (float32(n.Samples) - 1.0) / float32(n.Samples)
-			statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
+			statistics.Data[i].StdDev /= (float64(n.Samples) - 1.0) / float64(n.Samples)
+			statistics.Data[i].StdDev = math.Sqrt(statistics.Data[i].StdDev)
 		}
 	} else {
 		s := make([]int, n.Window)
@@ -86,18 +87,18 @@ func (n Net) CalculateStatistics(mean, stddev float64, systems []Sample) RandomM
 		}
 		for _, i := range s {
 			for j, value := range systems[i].Neurons.Data {
-				statistics.Data[j].Mean += value / float32(n.Window)
+				statistics.Data[j].Mean += float64(value) / float64(n.Window)
 			}
 		}
 		for _, i := range s {
 			for j, value := range systems[i].Neurons.Data {
-				diff := statistics.Data[j].Mean - value
-				statistics.Data[j].StdDev += diff * diff / float32(n.Window)
+				diff := statistics.Data[j].Mean - float64(value)
+				statistics.Data[j].StdDev += diff * diff / float64(n.Window)
 			}
 		}
 		for i := range statistics.Data {
-			statistics.Data[i].StdDev /= (float32(n.Window) - 1.0) / float32(n.Window)
-			statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
+			statistics.Data[i].StdDev /= (float64(n.Window) - 1.0) / float64(n.Window)
+			statistics.Data[i].StdDev = math.Sqrt(statistics.Data[i].StdDev)
 		}
 	}
 	return statistics
@@ -179,6 +180,7 @@ func (n *Net) Fire(query, key, value Matrix) (float64, Matrix, Matrix, Matrix) {
 	}
 	stddev /= float64(len(entropies))
 	stddev = math.Sqrt(stddev)
+	fmt.Println(mean, stddev)
 
 	if stddev > 0 {
 		sort.Slice(systemsQ, func(i, j int) bool {

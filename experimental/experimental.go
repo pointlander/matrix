@@ -15,16 +15,16 @@ import (
 // LUFactor factors a matrix into lower and upper
 func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 	window := 4
-	mean, stddev := float32(0), float32(0)
+	mean, stddev := 0.0, 0.0
 	for _, value := range a.Data {
-		mean += value
+		mean += float64(value)
 	}
-	mean /= float32(len(a.Data))
+	mean /= float64(len(a.Data))
 	for _, value := range a.Data {
-		diff := mean - value
+		diff := mean - float64(value)
 		stddev += diff * diff
 	}
-	stddev = float32(math.Sqrt(float64(stddev)))
+	stddev = math.Sqrt(stddev)
 	rl, ru := NewRandomMatrix(a.Cols, a.Rows), NewRandomMatrix(a.Cols, a.Rows)
 	for i := range rl.Data {
 		rl.Data[i].Mean = mean
@@ -35,7 +35,7 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 		ru.Data[i].StdDev = stddev
 	}
 	type Sample struct {
-		Cost float32
+		Cost float64
 		L    Matrix
 		U    Matrix
 	}
@@ -62,13 +62,13 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 				cost := Avg(QuadraticSet(MulT(sl, T(su)), a, set[s:end]))
 				samples[j].L = sl
 				samples[j].U = su
-				samples[j].Cost = cost.Data[0]
+				samples[j].Cost = float64(cost.Data[0])
 			}
 			sort.Slice(samples, func(i, j int) bool {
 				return samples[i].Cost < samples[j].Cost
 			})
 
-			weights, sum := make([]float32, window), float32(0)
+			weights, sum := make([]float64, window), 0.0
 			for i := range weights {
 				sum += 1 / samples[i].Cost
 				weights[i] = 1 / samples[i].Cost
@@ -84,18 +84,18 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 				}
 				for i := range samples[:window] {
 					for j, value := range samples[i].L.Data {
-						ll.Data[j].Mean += weights[i] * value
+						ll.Data[j].Mean += weights[i] * float64(value)
 					}
 				}
 				for i := range samples[:window] {
 					for j, value := range samples[i].L.Data {
-						diff := ll.Data[j].Mean - value
+						diff := ll.Data[j].Mean - float64(value)
 						ll.Data[j].StdDev += weights[i] * diff * diff
 					}
 				}
 				for i := range ll.Data {
-					ll.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-					ll.Data[i].StdDev = float32(math.Sqrt(float64(ll.Data[i].StdDev)))
+					ll.Data[i].StdDev /= (float64(window) - 1.0) / float64(window)
+					ll.Data[i].StdDev = math.Sqrt(ll.Data[i].StdDev)
 				}
 				rl = ll
 			} else {
@@ -105,18 +105,18 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 				}
 				for i := range samples[:window] {
 					for j, value := range samples[i].U.Data {
-						uu.Data[j].Mean += weights[i] * value
+						uu.Data[j].Mean += weights[i] * float64(value)
 					}
 				}
 				for i := range samples[:window] {
 					for j, value := range samples[i].U.Data {
-						diff := uu.Data[j].Mean - value
+						diff := uu.Data[j].Mean - float64(value)
 						uu.Data[j].StdDev += weights[i] * diff * diff
 					}
 				}
 				for i := range uu.Data {
-					uu.Data[i].StdDev /= (float32(window) - 1.0) / float32(window)
-					uu.Data[i].StdDev = float32(math.Sqrt(float64(uu.Data[i].StdDev)))
+					uu.Data[i].StdDev /= (float64(window) - 1.0) / float64(window)
+					uu.Data[i].StdDev = math.Sqrt(uu.Data[i].StdDev)
 				}
 				ru = uu
 			}

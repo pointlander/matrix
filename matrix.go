@@ -22,19 +22,10 @@ const (
 	Samples = 1024
 )
 
-const (
-	// StateM is the state for the mean
-	StateM = iota
-	// StateV is the state for the variance
-	StateV
-	// StateTotal is the total number of states
-	StateTotal
-)
-
 // Random is a random variable
 type Random struct {
-	Mean   float32
-	StdDev float32
+	Mean   float64
+	StdDev float64
 }
 
 // RandomMatrix is a random matrix
@@ -47,7 +38,7 @@ type RandomMatrix struct {
 // NewRandomMatrix returns a new random matrix
 func NewRandomMatrix(cols, rows int) RandomMatrix {
 	data := make([]Random, cols*rows)
-	factor := float32(math.Sqrt(2.0 / float64(cols)))
+	factor := math.Sqrt(2.0 / float64(cols))
 	for i := range data {
 		data[i].StdDev = factor
 	}
@@ -62,7 +53,8 @@ func NewRandomMatrix(cols, rows int) RandomMatrix {
 func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
 	sample := NewMatrix(r.Cols, r.Rows)
 	for _, v := range r.Data {
-		sample.Data = append(sample.Data, float32(rng.NormFloat64())*v.StdDev+v.Mean)
+		value := rng.NormFloat64()*v.StdDev + v.Mean
+		sample.Data = append(sample.Data, float32(value))
 	}
 	return sample
 }
@@ -71,13 +63,13 @@ func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
 func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
 	sample := NewMatrix(r.Cols, r.Rows)
 	for _, value := range r.Data {
-		v := float32(rng.NormFloat64())*value.StdDev + value.Mean
+		v := rng.NormFloat64()*value.StdDev + value.Mean
 		if v > 0 {
 			v = 1
 		} else {
 			v = -1
 		}
-		sample.Data = append(sample.Data, v)
+		sample.Data = append(sample.Data, float32(v))
 	}
 	return sample
 }
@@ -361,6 +353,24 @@ func softmax(values []float32) {
 	}
 }
 
+func softmax64(values []float64) {
+	max := 0.0
+	for _, v := range values {
+		if v > max {
+			max = v
+		}
+	}
+	s := max * S
+	sum := 0.0
+	for j, value := range values {
+		values[j] = math.Exp(value - s)
+		sum += values[j]
+	}
+	for j, value := range values {
+		values[j] = value / sum
+	}
+}
+
 func dot32(a, b []float32) float64 {
 	sum := 0.0
 	for i, v := range a {
@@ -463,13 +473,13 @@ func SelfEntropy64(Q, K, V Matrix) []float64 {
 			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
 			values[j] = dot32(K, Q)
 		}
-		taylor64(values)
+		softmax64(values)
 
 		for j := 0; j < V.Rows; j++ {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			entropies[j] = dot64(values, V)
 		}
-		taylor64(entropies)
+		softmax64(entropies)
 
 		entropy := 0.0
 		for _, e := range entropies {
@@ -557,11 +567,11 @@ func LU(mat Matrix) (Matrix, Matrix) {
 }
 
 // Determinant calculates the determinant of a matrix
-func Determinant(a Matrix) (float32, error) {
+func Determinant(a Matrix) (float64, error) {
 	l, u := LU(a)
-	det := float32(1)
+	det := 1.0
 	for i := 0; i < l.Cols; i++ {
-		det *= l.Data[i*l.Cols+i] * u.Data[i*l.Cols+i]
+		det *= float64(l.Data[i*l.Cols+i]) * float64(u.Data[i*l.Cols+i])
 	}
 	return det, nil
 }
@@ -577,11 +587,11 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	for _, value := range square.Data {
 		sum += float64(value) * float64(value)
 	}
-	length := float32(math.Sqrt(sum))
-	deviations := []float32{
-		length / 2,
-		float32(math.Sqrt(float64(length / 2))),
-		float32(math.Sqrt(float64(length / 2))),
+	length := math.Sqrt(sum)
+	deviations := []float64{
+		length / 8,
+		math.Sqrt(float64(length / 8)),
+		math.Sqrt(float64(length / 8)),
 	}
 	x := make([]RandomMatrix, len(deviations))
 	for i, stddev := range deviations {
@@ -593,11 +603,11 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	}
 	identity := NewIdentityMatrix(a.Cols)
 	type Sample struct {
-		Cost float32
+		Cost float64
 		X    []Matrix
 	}
 	samples := make([]Sample, Length, Length)
-	last := float32(-1.0)
+	last := -1.0
 	for {
 		xx := make([][]Matrix, len(x))
 		for j := range xx {
@@ -615,7 +625,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 					samples[index].X[0] = x
 					samples[index].X[1] = y
 					samples[index].X[2] = z
-					samples[index].Cost = cost.Data[0]
+					samples[index].Cost = float64(cost.Data[0])
 					index++
 				}
 			}
@@ -636,20 +646,20 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 
 		mean, stddev := 0.0, 0.0
 		for i := range samples {
-			mean += float64(samples[i].Cost)
+			mean += samples[i].Cost
 		}
 		mean /= float64(len(samples))
 		for i := range samples {
-			diff := mean - float64(samples[i].Cost)
+			diff := mean - samples[i].Cost
 			stddev += diff * diff
 		}
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
 
-		weights, sum := make([]float32, Length, Length), float32(0)
+		weights, sum := make([]float64, Length, Length), 0.0
 		for i := range weights {
-			diff := (float64(samples[i].Cost) - mean) / stddev
-			w := float32(math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
+			diff := (samples[i].Cost - mean) / stddev
+			w := math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += w
 			weights[i] = w
 		}
@@ -664,23 +674,23 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			}
 			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
-					nx.Data[l].Mean += weights[k] * value
+					nx.Data[l].Mean += weights[k] * float64(value)
 				}
 			}
 			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
-					diff := nx.Data[l].Mean - value
+					diff := nx.Data[l].Mean - float64(value)
 					nx.Data[l].StdDev += weights[k] * diff * diff
 				}
 			}
 			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float32(Length) - 1.0) / float32(Length)
-				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
+				nx.Data[k].StdDev /= (float64(Length) - 1.0) / float64(Length)
+				nx.Data[k].StdDev = math.Sqrt(nx.Data[k].StdDev)
 			}
 			x[j] = nx
 		}
 
-		if last > 0 && math.Abs(float64(last-samples[0].Cost)) < 1e-3 {
+		if last > 0 && math.Abs(last-samples[0].Cost) < 1e-9 {
 			break
 		}
 		last = samples[0].Cost
@@ -758,11 +768,11 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	for _, value := range square.Data {
 		sum += float64(value) * float64(value)
 	}
-	length := float32(math.Sqrt(sum))
-	deviations := []float32{
+	length := math.Sqrt(sum)
+	deviations := []float64{
 		length / 2,
-		float32(math.Sqrt(float64(length / 2))),
-		float32(math.Sqrt(float64(length / 2))),
+		math.Sqrt(length / 2),
+		math.Sqrt(length / 2),
 	}
 	x := make([]RandomMatrix, len(deviations))
 	for i, stddev := range deviations {
@@ -773,11 +783,11 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		}
 	}
 	type Sample struct {
-		Cost float32
+		Cost float64
 		X    []Matrix
 	}
 	samples := make([]Sample, Length, Length)
-	last := float32(-1.0)
+	last := -1.0
 	for {
 		xx := make([][]Matrix, len(x))
 		for j := range xx {
@@ -796,7 +806,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 					samples[index].X[0] = x
 					samples[index].X[1] = y
 					samples[index].X[2] = z
-					samples[index].Cost = cost.Data[0]
+					samples[index].Cost = float64(cost.Data[0])
 					index++
 				}
 			}
@@ -827,10 +837,10 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		stddev = math.Sqrt(stddev)
 
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
-		weights, sum := make([]float32, Length, Length), float32(0)
+		weights, sum := make([]float64, Length, Length), 0.0
 		for i := range weights {
-			diff := (float64(samples[i].Cost) - mean) / stddev
-			w := float32(math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
+			diff := (samples[i].Cost - mean) / stddev
+			w := math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += w
 			weights[i] = w
 		}
@@ -845,23 +855,23 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			}
 			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
-					nx.Data[l].Mean += weights[k] * value
+					nx.Data[l].Mean += weights[k] * float64(value)
 				}
 			}
 			for k := range samples {
 				for l, value := range samples[k].X[j].Data {
-					diff := nx.Data[l].Mean - value
+					diff := nx.Data[l].Mean - float64(value)
 					nx.Data[l].StdDev += weights[k] * diff * diff
 				}
 			}
 			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float32(Length) - 1.0) / float32(Length)
-				nx.Data[k].StdDev = float32(math.Sqrt(float64(nx.Data[k].StdDev)))
+				nx.Data[k].StdDev /= (float64(Length) - 1.0) / float64(Length)
+				nx.Data[k].StdDev = math.Sqrt(nx.Data[k].StdDev)
 			}
 			x[j] = nx
 		}
 
-		if last > 0 && math.Abs(float64(last-samples[0].Cost)) < 1e-6 {
+		if last > 0 && math.Abs(last-samples[0].Cost) < 1e-6 {
 			break
 		}
 		last = samples[0].Cost
