@@ -582,16 +582,21 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		N      = 32
 		Length = N * N * N
 	)
-	square := MulT(a, a)
-	sum := 0.0
-	for _, value := range square.Data {
-		sum += float64(value) * float64(value)
+	mean, stddev := 0.0, 0.0
+	for _, value := range a.Data {
+		mean += float64(value)
 	}
-	length := math.Sqrt(sum)
+	mean /= float64(len(a.Data))
+	for _, value := range a.Data {
+		diff := mean - float64(value)
+		stddev += diff * diff
+	}
+	stddev /= float64(len(a.Data))
+	stddev = math.Sqrt(stddev)
 	deviations := []float64{
-		length / 8,
-		math.Sqrt(float64(length / 8)),
-		math.Sqrt(float64(length / 8)),
+		mean,
+		math.Sqrt(stddev),
+		math.Sqrt(stddev),
 	}
 	x := make([]RandomMatrix, len(deviations))
 	for i, stddev := range deviations {
