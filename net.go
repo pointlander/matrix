@@ -46,48 +46,37 @@ type Sample struct {
 }
 
 // CalculateStatistics calculates the statistics of systems
-func (n Net) CalculateStatistics(systems []Sample) RandomMatrix {
+func (n Net) CalculateStatistics(mean, stddev float64, systems []Sample) RandomMatrix {
 	statistics := NewRandomMatrix(n.Inputs, n.Outputs)
 	for i := range statistics.Data {
 		statistics.Data[i].StdDev = 0
 	}
 
-	mean, stddev := 0.0, 0.0
-	for i := range systems {
-		mean += float64(systems[i].Entropy)
-	}
-	mean /= float64(len(systems))
-	for i := range systems {
-		diff := mean - float64(systems[i].Entropy)
-		stddev += diff * diff
-	}
-	stddev /= float64(len(systems))
-	stddev = math.Sqrt(stddev)
-
 	if stddev > 0 {
-		weights, sum := make([]float64, n.Window), 0.0
+		weights, sum := make([]float32, n.Samples), float32(0)
 		for i := range weights {
-			weight := math.Exp(-float64(systems[i].Entropy))
-			sum += weight
-			weights[i] = weight
+			diff := (float64(systems[i].Entropy) - mean) / stddev
+			w := float32(math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
+			sum += w
+			weights[i] = w
 		}
 		for i := range weights {
 			weights[i] /= sum
 		}
 
-		for i := range systems[:n.Window] {
+		for i := range systems {
 			for j, value := range systems[i].Neurons.Data {
 				statistics.Data[j].Mean += float32(weights[i]) * value
 			}
 		}
-		for i := range systems[:n.Window] {
+		for i := range systems {
 			for j, value := range systems[i].Neurons.Data {
 				diff := statistics.Data[j].Mean - value
 				statistics.Data[j].StdDev += float32(weights[i]) * diff * diff
 			}
 		}
 		for i := range statistics.Data {
-			statistics.Data[i].StdDev /= (float32(n.Window) - 1.0) / float32(n.Window)
+			statistics.Data[i].StdDev /= (float32(n.Samples) - 1.0) / float32(n.Samples)
 			statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
 		}
 	} else {
@@ -126,7 +115,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 	process := func(i int, seed int64) {
 		rng := rand.New(rand.NewSource(seed))
 		{
-			neurons := n.Q.SampleDiscrete(rng)
+			neurons := n.Q.Sample(rng)
 			outputs := MulT(neurons, query)
 			copy(q.Data[i*n.Outputs:], outputs.Data)
 			systemsQ[i] = Sample{
@@ -135,7 +124,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 			}
 		}
 		{
-			neurons := n.K.SampleDiscrete(rng)
+			neurons := n.K.Sample(rng)
 			outputs := MulT(neurons, key)
 			copy(k.Data[i*n.Outputs:], outputs.Data)
 			systemsK[i] = Sample{
@@ -144,7 +133,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 			}
 		}
 		{
-			neurons := n.V.SampleDiscrete(rng)
+			neurons := n.V.Sample(rng)
 			outputs := MulT(neurons, value)
 			copy(v.Data[i*n.Outputs:], outputs.Data)
 			systemsV[i] = Sample{
@@ -178,19 +167,34 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		systemsK[i].Entropy = entropy
 		systemsV[i].Entropy = entropy
 	}
-	sort.Slice(systemsQ, func(i, j int) bool {
-		return systemsQ[i].Entropy < systemsQ[j].Entropy
-	})
-	sort.Slice(systemsK, func(i, j int) bool {
-		return systemsK[i].Entropy < systemsK[j].Entropy
-	})
-	sort.Slice(systemsV, func(i, j int) bool {
-		return systemsV[i].Entropy < systemsV[j].Entropy
-	})
 
-	n.Q = n.CalculateStatistics(systemsQ)
-	n.K = n.CalculateStatistics(systemsK)
-	n.V = n.CalculateStatistics(systemsV)
+	mean, stddev := 0.0, 0.0
+	for _, entropy := range entropies {
+		mean += float64(entropy)
+	}
+	mean /= float64(len(entropies))
+	for _, entropy := range entropies {
+		diff := mean - float64(entropy)
+		stddev += diff * diff
+	}
+	stddev /= float64(len(entropies))
+	stddev = math.Sqrt(stddev)
+
+	if stddev > 0 {
+		sort.Slice(systemsQ, func(i, j int) bool {
+			return systemsQ[i].Entropy < systemsQ[j].Entropy
+		})
+		sort.Slice(systemsK, func(i, j int) bool {
+			return systemsK[i].Entropy < systemsK[j].Entropy
+		})
+		sort.Slice(systemsV, func(i, j int) bool {
+			return systemsV[i].Entropy < systemsV[j].Entropy
+		})
+	}
+
+	n.Q = n.CalculateStatistics(mean, stddev, systemsQ)
+	n.K = n.CalculateStatistics(mean, stddev, systemsK)
+	n.V = n.CalculateStatistics(mean, stddev, systemsV)
 
 	return systemsV[0].Entropy, systemsQ[0].Outputs, systemsK[0].Outputs, systemsV[0].Outputs
 }
