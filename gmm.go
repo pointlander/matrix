@@ -15,7 +15,6 @@ import (
 // GMM is a gaussian mixture model
 type GMM struct {
 	Clusters int
-	Epochs   int
 	Samples  int
 	Rng      *rand.Rand
 }
@@ -24,8 +23,7 @@ type GMM struct {
 func NewGMM() GMM {
 	return GMM{
 		Clusters: 20,
-		Epochs:   128,
-		Samples:  512,
+		Samples:  1024,
 		Rng:      rand.New(rand.NewSource(3)),
 	}
 }
@@ -146,7 +144,8 @@ func (g *GMM) GMM(input Matrix) []int {
 		samples[j].C /= float64(len(clusters))
 		done <- true
 	}
-	for i := 0; i < g.Epochs; i++ {
+	last := -1.0
+	for {
 		j, flight := 0, 0
 		for j < g.Samples && flight < cpus {
 			go process(j, rng.Int63())
@@ -197,20 +196,12 @@ func (g *GMM) GMM(input Matrix) []int {
 		}
 		stddev /= float64(len(samples))
 		stddev = math.Sqrt(stddev)
-		window := 0
-		for float64(samples[window].C) < mean {
-			window++
-		}
-		window /= 10
-		if window < 8 {
-			window = 8
-		}
 
 		// https://stats.stackexchange.com/questions/6534/how-do-i-calculate-a-weighted-standard-deviation-in-excel
-		weights, sum := make([]float32, window), float32(0)
+		weights, sum := make([]float32, g.Samples), float32(0)
 		for i := range weights {
 			diff := (float64(samples[i].C) - mean) / stddev
-			w := float32(math.Exp(-diff*diff/2) / (stddev * math.Sqrt(2*math.Pi)))
+			w := float32(math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
 			sum += w
 			weights[i] = w
 		}
@@ -219,60 +210,65 @@ func (g *GMM) GMM(input Matrix) []int {
 		}
 
 		for k := range clusters {
-			for i := range samples[:window] {
+			for i := range samples {
 				for x := range aa[k].E.Data {
 					value := samples[i].E[k].Data[x]
 					aa[k].E.Data[x].Mean += float32(weights[i]) * value
 				}
 			}
-			for i := range samples[:window] {
+			for i := range samples {
 				for x := range aa[k].E.Data {
 					diff := aa[k].E.Data[x].Mean - samples[i].E[k].Data[x]
 					aa[k].E.Data[x].StdDev += float32(weights[i]) * diff * diff
 				}
 			}
 			for x := range aa[k].E.Data {
-				aa[k].E.Data[x].StdDev /= (float32(window) - 1) / float32(window)
+				aa[k].E.Data[x].StdDev /= (float32(g.Samples) - 1) / float32(g.Samples)
 				aa[k].E.Data[x].StdDev = float32(math.Sqrt(float64(aa[k].E.Data[x].StdDev)))
 			}
 
-			for i := range samples[:window] {
+			for i := range samples {
 				for x := range aa[k].U.Data {
 					value := samples[i].U[k].Data[x]
 					aa[k].U.Data[x].Mean += float32(weights[i]) * value
 				}
 			}
-			for i := range samples[:window] {
+			for i := range samples {
 				for x := range aa[k].U.Data {
 					diff := aa[k].U.Data[x].Mean - samples[i].U[k].Data[x]
 					aa[k].U.Data[x].StdDev += float32(weights[i]) * diff * diff
 				}
 			}
 			for x := range aa[k].U.Data {
-				aa[k].U.Data[x].StdDev /= (float32(window) - 1) / float32(window)
+				aa[k].U.Data[x].StdDev /= (float32(g.Samples) - 1) / float32(g.Samples)
 				aa[k].U.Data[x].StdDev = float32(math.Sqrt(float64(aa[k].U.Data[x].StdDev)))
 			}
 		}
 
-		for i := range samples[:window] {
+		for i := range samples {
 			for x := range pi.Data {
 				value := samples[i].Pi[x]
 				pi.Data[x].Mean += weights[i] * float32(value)
 			}
 		}
-		for i := range samples[:window] {
+		for i := range samples {
 			for x := range pi.Data {
 				diff := float32(pi.Data[x].Mean) - float32(samples[i].Pi[x])
 				pi.Data[x].StdDev += float32(weights[i]) * diff * diff
 			}
 		}
 		for x := range pi.Data {
-			pi.Data[x].StdDev /= (float32(window) - 1) / float32(window)
+			pi.Data[x].StdDev /= (float32(g.Samples) - 1) / float32(g.Samples)
 			pi.Data[x].StdDev = float32(math.Sqrt(float64(pi.Data[x].StdDev)))
 		}
 
 		clusters = aa
 		Pi = pi
+
+		if last > 0 && math.Abs(last-samples[0].C) < 1e-6 {
+			break
+		}
+		last = samples[0].C
 	}
 
 	sort.Slice(samples, func(i, j int) bool {
