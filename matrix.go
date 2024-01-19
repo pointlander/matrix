@@ -361,10 +361,37 @@ func softmax(values []float32) {
 	}
 }
 
+func dot32(a, b []float32) float64 {
+	sum := 0.0
+	for i, v := range a {
+		sum += float64(v) * float64(b[i])
+	}
+	return sum
+}
+
+func dot64(a []float64, b []float32) float64 {
+	sum := 0.0
+	for i, v := range a {
+		sum += v * float64(b[i])
+	}
+	return sum
+}
+
 func taylor(values []float32) {
 	sum := float32(0.0)
 	for j, value := range values {
 		values[j] = float32(1 + value + value*value/2)
+		sum += values[j]
+	}
+	for j, value := range values {
+		values[j] = value / sum
+	}
+}
+
+func taylor64(values []float64) {
+	sum := 0.0
+	for j, value := range values {
+		values[j] = 1 + value + value*value/2
 		sum += values[j]
 	}
 	for j, value := range values {
@@ -422,6 +449,33 @@ func SelfEntropy(Q, K, V Matrix) []float32 {
 			entropy += float64(e) * math.Log(float64(e))
 		}
 		results = append(results, float32(-entropy))
+	}
+	return results
+}
+
+// SelfEntropy64 computes the self entropy of Q, K, V
+func SelfEntropy64(Q, K, V Matrix) []float64 {
+	entropies, values, results := make([]float64, V.Cols), make([]float64, K.Rows), make([]float64, 0, K.Rows)
+	V = T(V)
+	for i := 0; i < K.Rows; i++ {
+		K := K.Data[i*K.Cols : (i+1)*K.Cols]
+		for j := 0; j < Q.Rows; j++ {
+			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
+			values[j] = dot32(K, Q)
+		}
+		taylor64(values)
+
+		for j := 0; j < V.Rows; j++ {
+			V := V.Data[j*V.Cols : (j+1)*V.Cols]
+			entropies[j] = dot64(values, V)
+		}
+		taylor64(entropies)
+
+		entropy := 0.0
+		for _, e := range entropies {
+			entropy += e * math.Log(e)
+		}
+		results = append(results, -entropy)
 	}
 	return results
 }

@@ -40,7 +40,7 @@ func NewNet(seed int64, inputs, outputs int) Net {
 
 // Sample is a sample of a random neural network
 type Sample struct {
-	Entropy float32
+	Entropy float64
 	Neurons Matrix
 	Outputs Matrix
 }
@@ -53,10 +53,10 @@ func (n Net) CalculateStatistics(mean, stddev float64, systems []Sample) RandomM
 	}
 
 	if stddev > 0 {
-		weights, sum := make([]float32, n.Samples), float32(0)
+		weights, sum := make([]float64, n.Samples), 0.0
 		for i := range weights {
-			diff := (float64(systems[i].Entropy) - mean) / stddev
-			w := float32(math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi)))
+			diff := (systems[i].Entropy - mean) / stddev
+			w := math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += w
 			weights[i] = w
 		}
@@ -104,7 +104,7 @@ func (n Net) CalculateStatistics(mean, stddev float64, systems []Sample) RandomM
 }
 
 // Fire runs the network
-func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
+func (n *Net) Fire(query, key, value Matrix) (float64, Matrix, Matrix, Matrix) {
 	q := NewZeroMatrix(n.Outputs, n.Samples)
 	k := NewZeroMatrix(n.Outputs, n.Samples)
 	v := NewZeroMatrix(n.Outputs, n.Samples)
@@ -161,7 +161,7 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 		<-done
 	}
 
-	entropies := SelfEntropy(q, k, v)
+	entropies := SelfEntropy64(q, k, v)
 	for i, entropy := range entropies {
 		systemsQ[i].Entropy = entropy
 		systemsK[i].Entropy = entropy
@@ -170,11 +170,11 @@ func (n *Net) Fire(query, key, value Matrix) (float32, Matrix, Matrix, Matrix) {
 
 	mean, stddev := 0.0, 0.0
 	for _, entropy := range entropies {
-		mean += float64(entropy)
+		mean += entropy
 	}
 	mean /= float64(len(entropies))
 	for _, entropy := range entropies {
-		diff := mean - float64(entropy)
+		diff := mean - entropy
 		stddev += diff * diff
 	}
 	stddev /= float64(len(entropies))
