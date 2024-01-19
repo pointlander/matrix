@@ -51,30 +51,65 @@ func (n Net) CalculateStatistics(systems []Sample) RandomMatrix {
 	for i := range statistics.Data {
 		statistics.Data[i].StdDev = 0
 	}
-	weights, sum := make([]float64, n.Window), 0.0
-	for i := range weights {
-		weight := math.Exp(-float64(systems[i].Entropy))
-		sum += weight
-		weights[i] = weight
-	}
-	for i := range weights {
-		weights[i] /= sum
-	}
 
-	for i := range systems[:n.Window] {
-		for j, value := range systems[i].Neurons.Data {
-			statistics.Data[j].Mean += float32(weights[i]) * value
-		}
+	mean, stddev := 0.0, 0.0
+	for i := range systems {
+		mean += float64(systems[i].Entropy)
 	}
-	for i := range systems[:n.Window] {
-		for j, value := range systems[i].Neurons.Data {
-			diff := statistics.Data[j].Mean - value
-			statistics.Data[j].StdDev += float32(weights[i]) * diff * diff
-		}
+	mean /= float64(len(systems))
+	for i := range systems {
+		diff := mean - float64(systems[i].Entropy)
+		stddev += diff * diff
 	}
-	for i := range statistics.Data {
-		statistics.Data[i].StdDev /= (float32(n.Window) - 1.0) / float32(n.Window)
-		statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
+	stddev /= float64(len(systems))
+	stddev = math.Sqrt(stddev)
+
+	if stddev > 0 {
+		weights, sum := make([]float64, n.Window), 0.0
+		for i := range weights {
+			weight := math.Exp(-float64(systems[i].Entropy))
+			sum += weight
+			weights[i] = weight
+		}
+		for i := range weights {
+			weights[i] /= sum
+		}
+
+		for i := range systems[:n.Window] {
+			for j, value := range systems[i].Neurons.Data {
+				statistics.Data[j].Mean += float32(weights[i]) * value
+			}
+		}
+		for i := range systems[:n.Window] {
+			for j, value := range systems[i].Neurons.Data {
+				diff := statistics.Data[j].Mean - value
+				statistics.Data[j].StdDev += float32(weights[i]) * diff * diff
+			}
+		}
+		for i := range statistics.Data {
+			statistics.Data[i].StdDev /= (float32(n.Window) - 1.0) / float32(n.Window)
+			statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
+		}
+	} else {
+		s := make([]int, n.Window)
+		for i := range s {
+			s[i] = n.Rng.Intn(n.Samples)
+		}
+		for _, i := range s {
+			for j, value := range systems[i].Neurons.Data {
+				statistics.Data[j].Mean += value / float32(n.Window)
+			}
+		}
+		for _, i := range s {
+			for j, value := range systems[i].Neurons.Data {
+				diff := statistics.Data[j].Mean - value
+				statistics.Data[j].StdDev += diff * diff / float32(n.Window)
+			}
+		}
+		for i := range statistics.Data {
+			statistics.Data[i].StdDev /= (float32(n.Window) - 1.0) / float32(n.Window)
+			statistics.Data[i].StdDev = float32(math.Sqrt(float64(statistics.Data[i].StdDev)))
+		}
 	}
 	return statistics
 }

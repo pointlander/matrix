@@ -361,6 +361,17 @@ func softmax(values []float32) {
 	}
 }
 
+func taylor(values []float32) {
+	sum := float32(0.0)
+	for j, value := range values {
+		values[j] = float32(1 + value + value*value/2)
+		sum += values[j]
+	}
+	for j, value := range values {
+		values[j] = value / sum
+	}
+}
+
 // SelfAttention computes the self attention of Q, K, V
 func SelfAttention(Q, K, V Matrix) Matrix {
 	o := Matrix{
@@ -398,13 +409,13 @@ func SelfEntropy(Q, K, V Matrix) []float32 {
 			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
 			values[j] = vector.Dot(K, Q)
 		}
-		softmax(values)
+		taylor(values)
 
 		for j := 0; j < V.Rows; j++ {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			entropies[j] = vector.Dot(values, V)
 		}
-		softmax(entropies)
+		taylor(entropies)
 
 		entropy := 0.0
 		for _, e := range entropies {
