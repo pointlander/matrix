@@ -579,7 +579,7 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	const (
-		N      = 32
+		N      = 16
 		Length = N * N * N
 	)
 	mean, stddev := 0.0, 0.0
@@ -664,7 +664,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		weights, sum := make([]float64, Length, Length), 0.0
 		for i := range weights {
 			diff := (samples[i].Cost - mean) / stddev
-			w := math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+			w := math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += w
 			weights[i] = w
 		}
@@ -765,7 +765,7 @@ func NewMultiFromData(vars Matrix) Multi {
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	const (
-		N      = 32
+		N      = 16
 		Length = N * N * N
 	)
 	square := MulT(m.E, m.E)
@@ -845,7 +845,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		weights, sum := make([]float64, Length, Length), 0.0
 		for i := range weights {
 			diff := (samples[i].Cost - mean) / stddev
-			w := math.Exp(-(diff*diff/2 + float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+			w := math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += w
 			weights[i] = w
 		}
