@@ -765,19 +765,24 @@ func NewMultiFromData(vars Matrix) Multi {
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	const (
-		N      = 12
+		N      = 13
 		Length = N * N * N
 	)
-	square := MulT(m.E, m.E)
-	sum := 0.0
-	for _, value := range square.Data {
-		sum += float64(value) * float64(value)
+	mean, stddev := 0.0, 0.0
+	for _, value := range m.E.Data {
+		mean += float64(value)
 	}
-	length := math.Sqrt(sum)
+	mean /= float64(len(m.E.Data))
+	for _, value := range m.E.Data {
+		diff := mean - float64(value)
+		stddev += diff * diff
+	}
+	stddev /= float64(len(m.E.Data))
+	stddev = math.Sqrt(stddev)
 	deviations := []float64{
-		length / 2,
-		math.Sqrt(length / 2),
-		math.Sqrt(length / 2),
+		mean,
+		math.Sqrt(stddev),
+		math.Sqrt(stddev),
 	}
 	x := make([]RandomMatrix, len(deviations))
 	for i, stddev := range deviations {
