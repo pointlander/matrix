@@ -579,7 +579,7 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	const (
-		N      = 16
+		N      = 10
 		Length = N * N * N
 	)
 	mean, stddev := 0.0, 0.0
@@ -765,7 +765,7 @@ func NewMultiFromData(vars Matrix) Multi {
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	const (
-		N      = 16
+		N      = 12
 		Length = N * N * N
 	)
 	square := MulT(m.E, m.E)
