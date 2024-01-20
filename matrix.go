@@ -578,129 +578,26 @@ func Determinant(a Matrix) (float64, error) {
 
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
-	const (
-		N      = 10
-		Length = N * N * N
-	)
-	mean, stddev := 0.0, 0.0
-	for _, value := range a.Data {
-		mean += float64(value)
-	}
-	mean /= float64(len(a.Data))
-	for _, value := range a.Data {
-		diff := mean - float64(value)
-		stddev += diff * diff
-	}
-	stddev /= float64(len(a.Data))
-	stddev = math.Sqrt(stddev)
-	deviations := []float64{
-		mean,
-		math.Sqrt(stddev),
-		math.Sqrt(stddev),
-	}
-	x := make([]RandomMatrix, len(deviations))
-	for i, stddev := range deviations {
-		x[i] = NewRandomMatrix(a.Cols, a.Rows)
-		for j := range x[i].Data {
-			x[i].Data[j].Mean = 0
-			x[i].Data[j].StdDev = stddev
-		}
-	}
 	identity := NewIdentityMatrix(a.Cols)
-	type Sample struct {
-		Cost float64
-		X    []Matrix
-	}
-	samples := make([]Sample, Length, Length)
-	last := -1.0
-	for {
-		xx := make([][]Matrix, len(x))
-		for j := range xx {
-			xx[j] = make([]Matrix, N)
-			for k := range xx[j] {
-				xx[j][k] = x[j].Sample(rng)
-			}
-		}
+	optimizer := NewOptimizer(rng, 10, .1, 1, a, func(samples []OptimizerSample) {
 		done := make(chan bool, 8)
-		process := func(index int, x Matrix) {
-			for _, y := range xx[1] {
-				for _, z := range xx[2] {
-					cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
-					samples[index].X = make([]Matrix, len(xx))
-					samples[index].X[0] = x
-					samples[index].X[1] = y
-					samples[index].X[2] = z
-					samples[index].Cost = float64(cost.Data[0])
-					index++
-				}
-			}
+		process := func(index int) {
+			x := samples[index].Vars[0][0]
+			y := samples[index].Vars[0][1]
+			z := samples[index].Vars[0][2]
+			cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+			samples[index].Cost = float64(cost.Data[0])
 			done <- true
 		}
-		index := 0
-		for _, x := range xx[0] {
-			go process(index, x)
-			index += N * N
+		for j := range samples {
+			go process(j)
 		}
-		for j := 0; j < N; j++ {
+		for range samples {
 			<-done
 		}
-
-		sort.Slice(samples, func(i, j int) bool {
-			return samples[i].Cost < samples[j].Cost
-		})
-
-		mean, stddev := 0.0, 0.0
-		for i := range samples {
-			mean += samples[i].Cost
-		}
-		mean /= float64(len(samples))
-		for i := range samples {
-			diff := mean - samples[i].Cost
-			stddev += diff * diff
-		}
-		stddev /= float64(len(samples))
-		stddev = math.Sqrt(stddev)
-
-		weights, sum := make([]float64, Length, Length), 0.0
-		for i := range weights {
-			diff := (samples[i].Cost - mean) / stddev
-			w := math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
-			sum += w
-			weights[i] = w
-		}
-		for i := range weights {
-			weights[i] /= sum
-		}
-
-		for j := range xx {
-			nx := NewRandomMatrix(a.Cols, a.Rows)
-			for k := range nx.Data {
-				nx.Data[k].StdDev = 0
-			}
-			for k := range samples {
-				for l, value := range samples[k].X[j].Data {
-					nx.Data[l].Mean += weights[k] * float64(value)
-				}
-			}
-			for k := range samples {
-				for l, value := range samples[k].X[j].Data {
-					diff := nx.Data[l].Mean - float64(value)
-					nx.Data[l].StdDev += weights[k] * diff * diff
-				}
-			}
-			for k := range nx.Data {
-				nx.Data[k].StdDev /= (float64(Length) - 1.0) / float64(Length)
-				nx.Data[k].StdDev = math.Sqrt(nx.Data[k].StdDev)
-			}
-			x[j] = nx
-		}
-
-		if last > 0 && math.Abs(last-samples[0].Cost) < 1e-9 {
-			break
-		}
-		last = samples[0].Cost
-	}
-	return Add(samples[0].X[0], H(samples[0].X[1], samples[0].X[2]))
+	})
+	s := optimizer.Optimize()
+	return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
 }
 
 // Multi is a multivariate distribution
