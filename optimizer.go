@@ -123,6 +123,35 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	stddev /= float64(len(samples))
 	stddev = math.Sqrt(stddev)
 
+	if stddev == 0 {
+		for j := range o.Vars {
+			for v := range o.Vars[j] {
+				vv := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
+				for k := range vv.Data {
+					vv.Data[k].StdDev = 0
+				}
+				for k := range samples {
+					for l, value := range samples[k].Vars[j][v].Data {
+						vv.Data[l].Mean += float64(value) / float64(o.Length)
+					}
+				}
+				for k := range samples {
+					for l, value := range samples[k].Vars[j][v].Data {
+						diff := vv.Data[l].Mean - float64(value)
+						vv.Data[l].StdDev += diff * diff / float64(o.Length)
+					}
+				}
+				for k := range vv.Data {
+					vv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
+					vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+				}
+				o.Vars[j][v] = vv
+			}
+		}
+
+		return samples[0]
+	}
+
 	weights, sum := make([]float64, o.Length, o.Length), 0.0
 	for i := range weights {
 		diff := (samples[i].Cost - mean) / stddev
