@@ -17,18 +17,18 @@ type Optimizer struct {
 	Scale  float64
 	Rng    *rand.Rand
 	Vars   [][3]RandomMatrix
-	Cost   func(samples []OptimizerSample, a ...Matrix)
+	Cost   func(samples []Sample, a ...Matrix)
 }
 
-// OptimizerSample is a sample of the optimizer
-type OptimizerSample struct {
+// Sample is a sample of the optimizer
+type Sample struct {
 	Cost float64
 	Vars [][3]Matrix
 }
 
 // NewOptimizer creates a new optimizer
 func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
-	cost func(samples []OptimizerSample, a ...Matrix), a ...Matrix) Optimizer {
+	cost func(samples []Sample, a ...Matrix), a ...Matrix) Optimizer {
 	o := Optimizer{
 		N:      n,
 		Length: n * n * n,
@@ -77,8 +77,8 @@ func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
 	return o
 }
 
-func (o *Optimizer) Iterate(a ...Matrix) OptimizerSample {
-	samples := make([]OptimizerSample, o.Length, o.Length)
+func (o *Optimizer) Iterate(a ...Matrix) Sample {
+	samples := make([]Sample, o.Length, o.Length)
 	s := make([][][]Matrix, len(o.Vars))
 	for v := range s {
 		s[v] = make([][]Matrix, 3)
@@ -163,7 +163,7 @@ func (o *Optimizer) Iterate(a ...Matrix) OptimizerSample {
 }
 
 // Optimize optimizes a cost function
-func (o *Optimizer) Optimize(dx float64) OptimizerSample {
+func (o *Optimizer) Optimize(dx float64) Sample {
 	last := -1.0
 	for {
 		s := o.Iterate()

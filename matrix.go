@@ -578,7 +578,7 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	identity := NewIdentityMatrix(a.Cols)
-	optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []OptimizerSample, x ...Matrix) {
+	optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
@@ -660,7 +660,7 @@ func NewMultiFromData(vars Matrix) Multi {
 
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	optimizer := NewOptimizer(rng, 13, .1, 1, func(samples []OptimizerSample, x ...Matrix) {
+	optimizer := NewOptimizer(rng, 13, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
