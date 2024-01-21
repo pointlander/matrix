@@ -578,7 +578,7 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	identity := NewIdentityMatrix(a.Cols)
-	optimizer := NewOptimizer(rng, 10, .1, 1, a, func(samples []OptimizerSample) {
+	optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []OptimizerSample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
@@ -594,7 +594,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		for range samples {
 			<-done
 		}
-	})
+	}, a)
 	s := optimizer.Optimize(1e-9)
 	return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
 }
@@ -660,7 +660,7 @@ func NewMultiFromData(vars Matrix) Multi {
 
 // LearnA factors a matrix into AA^T
 func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	optimizer := NewOptimizer(rng, 13, .1, 1, m.E, func(samples []OptimizerSample) {
+	optimizer := NewOptimizer(rng, 13, .1, 1, func(samples []OptimizerSample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
@@ -677,7 +677,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		for range samples {
 			<-done
 		}
-	})
+	}, m.E)
 	s := optimizer.Optimize(1e-6)
 	m.A = Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
 }

@@ -17,7 +17,7 @@ type Optimizer struct {
 	Scale  float64
 	Rng    *rand.Rand
 	Vars   [][3]RandomMatrix
-	Cost   func(samples []OptimizerSample)
+	Cost   func(samples []OptimizerSample, a ...Matrix)
 }
 
 // OptimizerSample is a sample of the optimizer
@@ -27,8 +27,8 @@ type OptimizerSample struct {
 }
 
 // NewOptimizer creates a new optimizer
-func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int, a Matrix,
-	cost func(samples []OptimizerSample)) Optimizer {
+func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
+	cost func(samples []OptimizerSample, a ...Matrix), a ...Matrix) Optimizer {
 	o := Optimizer{
 		N:      n,
 		Length: n * n * n,
@@ -36,39 +36,41 @@ func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int, a Matrix,
 		Rng:    rng,
 		Cost:   cost,
 	}
-	mean, stddev := 0.0, 0.0
-	for _, value := range a.Data {
-		mean += float64(value)
-	}
-	mean /= float64(len(a.Data))
-	for _, value := range a.Data {
-		diff := mean - float64(value)
-		stddev += diff * diff
-	}
-	stddev /= float64(len(a.Data))
-	stddev = math.Sqrt(stddev)
-	o.Vars = make([][3]RandomMatrix, vars)
-	for v := range o.Vars {
-		o.Vars[v][0] = NewRandomMatrix(a.Cols, a.Rows)
-		for j := range o.Vars[v][0].Data {
-			o.Vars[v][0].Data[j].Mean = 0
-			o.Vars[v][0].Data[j].StdDev = mean
+	if a != nil {
+		mean, stddev := 0.0, 0.0
+		for _, value := range a[0].Data {
+			mean += float64(value)
 		}
-		o.Vars[v][1] = NewRandomMatrix(a.Cols, a.Rows)
-		for j := range o.Vars[v][1].Data {
-			o.Vars[v][1].Data[j].Mean = 0
-			o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+		mean /= float64(len(a[0].Data))
+		for _, value := range a[0].Data {
+			diff := mean - float64(value)
+			stddev += diff * diff
 		}
-		o.Vars[v][2] = NewRandomMatrix(a.Cols, a.Rows)
-		for j := range o.Vars[v][2].Data {
-			o.Vars[v][2].Data[j].Mean = 0
-			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+		stddev /= float64(len(a[0].Data))
+		stddev = math.Sqrt(stddev)
+		o.Vars = make([][3]RandomMatrix, vars)
+		for v := range o.Vars {
+			o.Vars[v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			for j := range o.Vars[v][0].Data {
+				o.Vars[v][0].Data[j].Mean = 0
+				o.Vars[v][0].Data[j].StdDev = mean
+			}
+			o.Vars[v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			for j := range o.Vars[v][1].Data {
+				o.Vars[v][1].Data[j].Mean = 0
+				o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+			}
+			o.Vars[v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			for j := range o.Vars[v][2].Data {
+				o.Vars[v][2].Data[j].Mean = 0
+				o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+			}
 		}
 	}
 	return o
 }
 
-func (o *Optimizer) Iterate() OptimizerSample {
+func (o *Optimizer) Iterate(a ...Matrix) OptimizerSample {
 	samples := make([]OptimizerSample, o.Length, o.Length)
 	s := make([][][]Matrix, len(o.Vars))
 	for v := range s {
@@ -97,7 +99,7 @@ func (o *Optimizer) Iterate() OptimizerSample {
 		}
 	}
 
-	o.Cost(samples)
+	o.Cost(samples, a...)
 	sort.Slice(samples, func(i, j int) bool {
 		return samples[i].Cost < samples[j].Cost
 	})
