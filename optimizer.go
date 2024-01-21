@@ -36,7 +36,7 @@ func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
 		Rng:    rng,
 		Cost:   cost,
 	}
-	if a != nil {
+	if len(a[0].Data) > 0 {
 		mean, stddev := 0.0, 0.0
 		for _, value := range a[0].Data {
 			mean += float64(value)
@@ -65,6 +65,13 @@ func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
 				o.Vars[v][2].Data[j].Mean = 0
 				o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
 			}
+		}
+	} else {
+		o.Vars = make([][3]RandomMatrix, vars)
+		for v := range o.Vars {
+			o.Vars[v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			o.Vars[v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			o.Vars[v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
 		}
 	}
 	return o
