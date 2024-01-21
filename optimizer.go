@@ -154,11 +154,11 @@ func (o *Optimizer) Iterate() OptimizerSample {
 }
 
 // Optimize optimizes a cost function
-func (o *Optimizer) Optimize() OptimizerSample {
+func (o *Optimizer) Optimize(dx float64) OptimizerSample {
 	last := -1.0
 	for {
 		s := o.Iterate()
-		if last > 0 && math.Abs(last-s.Cost) < 1e-9 {
+		if last > 0 && math.Abs(last-s.Cost) < dx {
 			return s
 		}
 		last = s.Cost
