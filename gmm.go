@@ -11,6 +11,164 @@ import (
 	"sort"
 )
 
+// GMMOptimizer is an optimizer based gmm
+type GMMOptimizer struct {
+	Optimizer
+	Clusters int
+}
+
+// NewGMMOptimizer creates a new optimizer based gmm
+func NewGMMOptimizer(input Matrix) GMMOptimizer {
+	rng := rand.New(rand.NewSource(3))
+	const (
+		n        = 16
+		Clusters = 20
+		vars     = 2*Clusters + 1
+	)
+	o := Optimizer{
+		N:      n,
+		Length: n * n * n,
+		Scale:  1,
+		Rng:    rng,
+		Cost: func(samples []Sample, a ...Matrix) {
+			done, cpus := make(chan bool, 8), runtime.NumCPU()
+			process := func(j int) {
+				for l := range samples[j].Vars[2*Clusters] {
+					sum := 0.0
+					for m := range samples[j].Vars[2*Clusters][l].Data {
+						if samples[j].Vars[2*Clusters][l].Data[m] < 0 {
+							samples[j].Vars[2*Clusters][l].Data[m] = -samples[j].Vars[2*Clusters][l].Data[m]
+						}
+						sum += float64(samples[j].Vars[2*Clusters][l].Data[m])
+					}
+					for m := range samples[j].Vars[2*Clusters][l].Data {
+						samples[j].Vars[2*Clusters][l].Data[m] /= float32(sum)
+					}
+				}
+				cs := make([][]float64, Clusters)
+				for k := range cs {
+					cs[k] = make([]float64, input.Rows, input.Rows)
+				}
+				for k := 0; k < Clusters; k++ {
+					E := Add(samples[j].Vars[k][0], H(samples[j].Vars[k][1], samples[j].Vars[k][2]))
+					U := Add(samples[j].Vars[k+Clusters][0], H(samples[j].Vars[k+Clusters][1], samples[j].Vars[k+Clusters][2]))
+					det, _ := Determinant(E)
+					for f := 0; f < input.Rows; f++ {
+						row := input.Data[f*input.Cols : (f+1)*input.Cols]
+						x := NewMatrix(input.Cols, 1, row...)
+						y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+						pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
+							math.Pow(det, 1/2) *
+							math.Exp(float64(-y.Data[0])/2)
+						cs[k][f] = float64(samples[j].Vars[Clusters][0].Data[f*Clusters+k]) * pdf
+					}
+				}
+				for f := 0; f < input.Rows; f++ {
+					sum := 0.0
+					for k := 0; k < Clusters; k++ {
+						sum += cs[k][f]
+					}
+					for k := 0; k < Clusters; k++ {
+						cs[k][f] /= sum
+					}
+				}
+				for k := 0; k < Clusters; k++ {
+					mean := 0.0
+					for _, value := range cs[k] {
+						mean += value
+					}
+					mean /= float64(input.Rows)
+					stddev := 0.0
+					for _, value := range cs[k] {
+						diff := value - mean
+						stddev += diff * diff
+					}
+					stddev /= float64(input.Rows)
+					stddev = math.Sqrt(stddev)
+					samples[j].Cost += stddev
+				}
+				samples[j].Cost = math.Exp(-samples[j].Cost)
+				samples[j].Cost /= float64(Clusters)
+				done <- true
+			}
+			j, flight := 0, 0
+			for j < len(samples) && flight < cpus {
+				go process(j)
+				j++
+				flight++
+			}
+			for j < len(samples) {
+				<-done
+				flight--
+
+				go process(j)
+				j++
+				flight++
+			}
+			for f := 0; f < flight; f++ {
+				<-done
+			}
+		},
+	}
+
+	mean, stddev, count := 0.0, 0.0, 0.0
+	for _, value := range input.Data {
+		mean += float64(value)
+		count++
+	}
+	mean /= count
+	for _, value := range input.Data {
+		diff := float64(value) - mean
+		stddev += diff * diff
+	}
+	o.Vars = make([][3]RandomMatrix, vars)
+	for v := range o.Vars[:Clusters] {
+		o.Vars[v][0] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[v][0].Data {
+			o.Vars[v][0].Data[j].Mean = 0
+			o.Vars[v][0].Data[j].StdDev = mean
+		}
+		o.Vars[v][1] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[v][1].Data {
+			o.Vars[v][1].Data[j].Mean = 0
+			o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+		}
+		o.Vars[v][2] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[v][2].Data {
+			o.Vars[v][2].Data[j].Mean = 0
+			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+		}
+	}
+	for v := range o.Vars[Clusters : 2*Clusters] {
+		o.Vars[v][0] = NewRandomMatrix(input.Cols, 1)
+		for j := range o.Vars[v][0].Data {
+			o.Vars[v][0].Data[j].Mean = 0
+			o.Vars[v][0].Data[j].StdDev = mean
+		}
+		o.Vars[v][1] = NewRandomMatrix(input.Cols, 1)
+		for j := range o.Vars[v][1].Data {
+			o.Vars[v][1].Data[j].Mean = 0
+			o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+		}
+		o.Vars[v][2] = NewRandomMatrix(input.Cols, 1)
+		for j := range o.Vars[v][2].Data {
+			o.Vars[v][2].Data[j].Mean = 0
+			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+		}
+	}
+	for v := range o.Vars[2*Clusters] {
+		o.Vars[20][v] = NewRandomMatrix(Clusters, input.Rows)
+		for j := range o.Vars[2*Clusters][v].Data {
+			o.Vars[2*Clusters][v].Data[j].StdDev = 1
+		}
+	}
+
+	return GMMOptimizer{
+		Optimizer: o,
+		Clusters:  20,
+	}
+}
+
 // GMM is a gaussian mixture model
 type GMM struct {
 	Clusters int
