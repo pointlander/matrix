@@ -85,7 +85,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		for j := range s[v] {
 			s[v][j] = make([]Matrix, o.N)
 			for k := range s[v][j] {
-				s[v][j][k] = o.Vars[0][j].Sample(o.Rng)
+				s[v][j][k] = o.Vars[v][j].Sample(o.Rng)
 			}
 		}
 	}
