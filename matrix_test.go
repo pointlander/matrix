@@ -221,9 +221,11 @@ func TestIris(t *testing.T) {
 	for i := range flowers {
 		in.Data = append(in.Data, flowers[i].Embedding...)
 	}
-	gmm := NewGMM()
+	/*gmm := NewGMM()
 	gmm.Clusters = Clusters
-	out := gmm.GMM(in)
+	out := gmm.GMM(in)*/
+	gmm := NewGMMOptimizer(in, Clusters)
+	out := gmm.Optimize(in)
 	for i, value := range out {
 		flowers[i].Cluster = value
 	}

@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"runtime"
@@ -28,7 +27,7 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 	o := Optimizer{
 		N:      n,
 		Length: n * n * n,
-		Scale:  1,
+		Scale:  .01,
 		Rng:    rng,
 		Cost: func(samples []Sample, a ...Matrix) {
 			done, cpus := make(chan bool, 8), runtime.NumCPU()
@@ -52,7 +51,6 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 				for k := 0; k < clusters; k++ {
 					E := Add(samples[j].Vars[k][0], H(samples[j].Vars[k][1], samples[j].Vars[k][2]))
 					U := Add(samples[j].Vars[k+clusters][0], H(samples[j].Vars[k+clusters][1], samples[j].Vars[k+clusters][2]))
-					fmt.Println(U)
 					det, _ := Determinant(E)
 					for f := 0; f < input.Rows; f++ {
 						row := input.Data[f*input.Cols : (f+1)*input.Cols]
@@ -61,7 +59,7 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 						pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 							math.Pow(det, 1/2) *
 							math.Exp(float64(-y.Data[0])/2)
-						cs[k][f] = float64(samples[j].Vars[clusters][0].Data[f*clusters+k]) * pdf
+						cs[k][f] = float64(samples[j].Vars[2*clusters][0].Data[f*clusters+k]) * pdf
 					}
 				}
 				for f := 0; f < input.Rows; f++ {
@@ -132,12 +130,12 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 		o.Vars[v][1] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][1].Data {
 			o.Vars[v][1].Data[j].Mean = 0
-			o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+			o.Vars[v][1].Data[j].StdDev = mean
 		}
 		o.Vars[v][2] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][2].Data {
 			o.Vars[v][2].Data[j].Mean = 0
-			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+			o.Vars[v][2].Data[j].StdDev = mean
 		}
 	}
 	u := o.Vars[clusters : 2*clusters]
@@ -150,17 +148,12 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 		u[v][1] = NewRandomMatrix(input.Cols, 1)
 		for j := range u[v][1].Data {
 			u[v][1].Data[j].Mean = 0
-			u[v][1].Data[j].StdDev = math.Sqrt(stddev)
+			u[v][1].Data[j].StdDev = mean
 		}
 		u[v][2] = NewRandomMatrix(input.Cols, 1)
 		for j := range u[v][2].Data {
 			u[v][2].Data[j].Mean = 0
-			u[v][2].Data[j].StdDev = math.Sqrt(stddev)
-		}
-	}
-	for k := 0; k < clusters; k++ {
-		for l := 0; l < 3; l++ {
-			fmt.Println(o.Vars[k+clusters][l].Cols, o.Vars[k+clusters][l].Rows)
+			u[v][2].Data[j].StdDev = mean
 		}
 	}
 	for v := range o.Vars[2*clusters] {
@@ -172,7 +165,7 @@ func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 
 	return GMMOptimizer{
 		Optimizer: o,
-		Clusters:  20,
+		Clusters:  clusters,
 	}
 }
 
