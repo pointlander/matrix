@@ -116,6 +116,14 @@ func NewIdentityMatrix(size int) Matrix {
 	}
 }
 
+// NewCoord creates a new coordinate
+func NewCoord(cols, rows int) Matrix {
+	return Matrix{
+		Cols: cols,
+		Rows: rows,
+	}
+}
+
 // Size is the size of the float32 matrix
 func (m Matrix) Size() int {
 	return m.Cols * m.Rows

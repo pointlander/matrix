@@ -70,7 +70,7 @@ func NewNet(seed int64, inputs, outputs int) Net {
 			for i, entropy := range entropies {
 				samples[i].Cost = entropy
 			}
-		}, NewMatrix(inputs, outputs)),
+		}, NewCoord(inputs, outputs)),
 	}
 }
 
