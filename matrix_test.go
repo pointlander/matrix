@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -157,6 +158,78 @@ func TestMulti(t *testing.T) {
 		if math.Round(float64(e.Data[3])*10) != 20 {
 			t.Fatal("result should be 2", e.Data[3])
 		}
+	}
+}
+
+func TestIris(t *testing.T) {
+	const (
+		// Inputs is the number of inputs
+		Inputs = 4
+		// Outputs is the number of outputs
+		Outputs = 4
+		// Embedding is the embedding size
+		Embedding = 3 * 4
+		// Clusters is the number of clusters
+		Clusters = 3
+	)
+	type Flower struct {
+		Measures  []float32
+		Label     string
+		I         int
+		Embedding []float32
+		Cluster   int
+	}
+
+	rng := rand.New(rand.NewSource(1))
+	flowers := make([]Flower, len(Iris))
+	for i := range flowers {
+		flowers[i].Measures = Iris[i][:4]
+		flowers[i].Label = IrisNames[Iris[i][4]]
+	}
+
+	for i, value := range flowers {
+		sum := float32(0.0)
+		for _, v := range value.Measures {
+			sum += v * v
+		}
+		length := float32(math.Sqrt(float64(sum)))
+		for i := range value.Measures {
+			value.Measures[i] /= length
+		}
+		flowers[i].I = i
+	}
+	net := NewNet(1, Inputs, Outputs)
+	length := len(flowers)
+	const epochs = 2
+	for i := 0; i < epochs; i++ {
+		perm := rng.Perm(len(flowers))
+		for epoch := 0; epoch < length; epoch++ {
+			index := perm[epoch]
+			query := NewMatrix(Inputs, 1, flowers[index].Measures...)
+			key := NewMatrix(Inputs, 1, flowers[index].Measures...)
+			value := NewMatrix(Inputs, 1, flowers[index].Measures...)
+			label := flowers[index].Label
+			entropy, q, k, v := net.Fire(query, key, value)
+			fmt.Println(label, entropy, v.Data)
+			if i == epochs-1 {
+				flowers[index].Embedding = append(flowers[index].Embedding, q.Data...)
+				flowers[index].Embedding = append(flowers[index].Embedding, k.Data...)
+				flowers[index].Embedding = append(flowers[index].Embedding, v.Data...)
+			}
+		}
+	}
+	in := NewMatrix(Embedding, len(flowers))
+	for i := range flowers {
+		in.Data = append(in.Data, flowers[i].Embedding...)
+	}
+	gmm := NewGMM()
+	gmm.Clusters = Clusters
+	out := gmm.GMM(in)
+	for i, value := range out {
+		flowers[i].Cluster = value
+	}
+	for i := range flowers {
+		fmt.Println(flowers[i].Cluster, flowers[i].Label)
 	}
 }
 
