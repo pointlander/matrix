@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"runtime"
@@ -18,12 +19,11 @@ type GMMOptimizer struct {
 }
 
 // NewGMMOptimizer creates a new optimizer based gmm
-func NewGMMOptimizer(input Matrix) GMMOptimizer {
+func NewGMMOptimizer(input Matrix, clusters int) GMMOptimizer {
 	rng := rand.New(rand.NewSource(3))
+	vars := 2*clusters + 1
 	const (
-		n        = 16
-		Clusters = 20
-		vars     = 2*Clusters + 1
+		n = 16
 	)
 	o := Optimizer{
 		N:      n,
@@ -33,25 +33,26 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 		Cost: func(samples []Sample, a ...Matrix) {
 			done, cpus := make(chan bool, 8), runtime.NumCPU()
 			process := func(j int) {
-				for l := range samples[j].Vars[2*Clusters] {
+				for l := range samples[j].Vars[2*clusters] {
 					sum := 0.0
-					for m := range samples[j].Vars[2*Clusters][l].Data {
-						if samples[j].Vars[2*Clusters][l].Data[m] < 0 {
-							samples[j].Vars[2*Clusters][l].Data[m] = -samples[j].Vars[2*Clusters][l].Data[m]
+					for m := range samples[j].Vars[2*clusters][l].Data {
+						if samples[j].Vars[2*clusters][l].Data[m] < 0 {
+							samples[j].Vars[2*clusters][l].Data[m] = -samples[j].Vars[2*clusters][l].Data[m]
 						}
-						sum += float64(samples[j].Vars[2*Clusters][l].Data[m])
+						sum += float64(samples[j].Vars[2*clusters][l].Data[m])
 					}
-					for m := range samples[j].Vars[2*Clusters][l].Data {
-						samples[j].Vars[2*Clusters][l].Data[m] /= float32(sum)
+					for m := range samples[j].Vars[2*clusters][l].Data {
+						samples[j].Vars[2*clusters][l].Data[m] /= float32(sum)
 					}
 				}
-				cs := make([][]float64, Clusters)
+				cs := make([][]float64, clusters)
 				for k := range cs {
 					cs[k] = make([]float64, input.Rows, input.Rows)
 				}
-				for k := 0; k < Clusters; k++ {
+				for k := 0; k < clusters; k++ {
 					E := Add(samples[j].Vars[k][0], H(samples[j].Vars[k][1], samples[j].Vars[k][2]))
-					U := Add(samples[j].Vars[k+Clusters][0], H(samples[j].Vars[k+Clusters][1], samples[j].Vars[k+Clusters][2]))
+					U := Add(samples[j].Vars[k+clusters][0], H(samples[j].Vars[k+clusters][1], samples[j].Vars[k+clusters][2]))
+					fmt.Println(U)
 					det, _ := Determinant(E)
 					for f := 0; f < input.Rows; f++ {
 						row := input.Data[f*input.Cols : (f+1)*input.Cols]
@@ -60,19 +61,19 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 						pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 							math.Pow(det, 1/2) *
 							math.Exp(float64(-y.Data[0])/2)
-						cs[k][f] = float64(samples[j].Vars[Clusters][0].Data[f*Clusters+k]) * pdf
+						cs[k][f] = float64(samples[j].Vars[clusters][0].Data[f*clusters+k]) * pdf
 					}
 				}
 				for f := 0; f < input.Rows; f++ {
 					sum := 0.0
-					for k := 0; k < Clusters; k++ {
+					for k := 0; k < clusters; k++ {
 						sum += cs[k][f]
 					}
-					for k := 0; k < Clusters; k++ {
+					for k := 0; k < clusters; k++ {
 						cs[k][f] /= sum
 					}
 				}
-				for k := 0; k < Clusters; k++ {
+				for k := 0; k < clusters; k++ {
 					mean := 0.0
 					for _, value := range cs[k] {
 						mean += value
@@ -88,7 +89,7 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 					samples[j].Cost += stddev
 				}
 				samples[j].Cost = math.Exp(-samples[j].Cost)
-				samples[j].Cost /= float64(Clusters)
+				samples[j].Cost /= float64(clusters)
 				done <- true
 			}
 			j, flight := 0, 0
@@ -122,7 +123,7 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 		stddev += diff * diff
 	}
 	o.Vars = make([][3]RandomMatrix, vars)
-	for v := range o.Vars[:Clusters] {
+	for v := range o.Vars[:clusters] {
 		o.Vars[v][0] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][0].Data {
 			o.Vars[v][0].Data[j].Mean = 0
@@ -139,27 +140,33 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
 		}
 	}
-	for v := range o.Vars[Clusters : 2*Clusters] {
-		o.Vars[v][0] = NewRandomMatrix(input.Cols, 1)
-		for j := range o.Vars[v][0].Data {
-			o.Vars[v][0].Data[j].Mean = 0
-			o.Vars[v][0].Data[j].StdDev = mean
+	u := o.Vars[clusters : 2*clusters]
+	for v := range u {
+		u[v][0] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[v][0].Data {
+			u[v][0].Data[j].Mean = 0
+			u[v][0].Data[j].StdDev = mean
 		}
-		o.Vars[v][1] = NewRandomMatrix(input.Cols, 1)
-		for j := range o.Vars[v][1].Data {
-			o.Vars[v][1].Data[j].Mean = 0
-			o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
+		u[v][1] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[v][1].Data {
+			u[v][1].Data[j].Mean = 0
+			u[v][1].Data[j].StdDev = math.Sqrt(stddev)
 		}
-		o.Vars[v][2] = NewRandomMatrix(input.Cols, 1)
-		for j := range o.Vars[v][2].Data {
-			o.Vars[v][2].Data[j].Mean = 0
-			o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+		u[v][2] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[v][2].Data {
+			u[v][2].Data[j].Mean = 0
+			u[v][2].Data[j].StdDev = math.Sqrt(stddev)
 		}
 	}
-	for v := range o.Vars[2*Clusters] {
-		o.Vars[20][v] = NewRandomMatrix(Clusters, input.Rows)
-		for j := range o.Vars[2*Clusters][v].Data {
-			o.Vars[2*Clusters][v].Data[j].StdDev = 1
+	for k := 0; k < clusters; k++ {
+		for l := 0; l < 3; l++ {
+			fmt.Println(o.Vars[k+clusters][l].Cols, o.Vars[k+clusters][l].Rows)
+		}
+	}
+	for v := range o.Vars[2*clusters] {
+		o.Vars[2*clusters][v] = NewRandomMatrix(clusters, input.Rows)
+		for j := range o.Vars[2*clusters][v].Data {
+			o.Vars[2*clusters][v].Data[j].StdDev = 1
 		}
 	}
 
@@ -167,6 +174,34 @@ func NewGMMOptimizer(input Matrix) GMMOptimizer {
 		Optimizer: o,
 		Clusters:  20,
 	}
+}
+
+func (g *GMMOptimizer) Optimize(input Matrix) []int {
+	sample := g.Optimizer.Optimize(1e-6)
+
+	output := make([]int, input.Rows)
+	for i := 0; i < input.Rows; i++ {
+		row := input.Data[i*input.Cols : (i+1)*input.Cols]
+		x := NewMatrix(input.Cols, 1, row...)
+
+		index, max := 0, 0.0
+		for j := 0; j < g.Clusters; j++ {
+			E := Add(sample.Vars[j][0], H(sample.Vars[j][1], sample.Vars[j][2]))
+			U := Add(sample.Vars[j+g.Clusters][0], H(sample.Vars[j+g.Clusters][1], sample.Vars[j+g.Clusters][2]))
+			det, _ := Determinant(E)
+			y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+			pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
+				math.Pow(det, 1/2) *
+				math.Exp(float64(-y.Data[0])/2)
+			pdf *= float64(sample.Vars[2*g.Clusters][0].Data[i*g.Clusters+j])
+			if pdf > max {
+				index, max = j, pdf
+			}
+		}
+		output[i] = index
+	}
+
+	return output
 }
 
 // GMM is a gaussian mixture model
