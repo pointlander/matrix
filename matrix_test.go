@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -174,7 +173,7 @@ func TestIris(t *testing.T) {
 	)
 	type Flower struct {
 		Measures  []float32
-		Label     string
+		Label     float32
 		I         int
 		Embedding []float32
 		Cluster   int
@@ -184,7 +183,7 @@ func TestIris(t *testing.T) {
 	flowers := make([]Flower, len(Iris))
 	for i := range flowers {
 		flowers[i].Measures = Iris[i][:4]
-		flowers[i].Label = IrisNames[Iris[i][4]]
+		flowers[i].Label = Iris[i][4]
 	}
 
 	for i, value := range flowers {
@@ -210,7 +209,7 @@ func TestIris(t *testing.T) {
 			value := NewMatrix(Inputs, 1, flowers[index].Measures...)
 			label := flowers[index].Label
 			entropy, q, k, v := net.Fire(query, key, value)
-			fmt.Println(label, entropy, v.Data)
+			t.Log(label, entropy, v.Data)
 			if i == epochs-1 {
 				flowers[index].Embedding = append(flowers[index].Embedding, q.Data...)
 				flowers[index].Embedding = append(flowers[index].Embedding, k.Data...)
@@ -228,8 +227,46 @@ func TestIris(t *testing.T) {
 	for i, value := range out {
 		flowers[i].Cluster = value
 	}
+	ab, ba := [3][3]float64{}, [3][3]float64{}
 	for i := range flowers {
-		fmt.Println(flowers[i].Cluster, flowers[i].Label)
+		t.Log(IrisNames[flowers[i].Label], flowers[i].Cluster)
+		a := int(flowers[i].Label)
+		b := flowers[i].Cluster
+		ab[a][b]++
+		ba[b][a]++
+	}
+	entropy := 0.0
+	for i := 0; i < 3; i++ {
+		entropy += (1.0 / 3.0) * math.Log(1.0/3.0)
+	}
+	t.Log(-entropy, -(1.0/3.0)*math.Log(1.0/3.0))
+	for i := range ab {
+		entropy := 0.0
+		for _, value := range ab[i] {
+			if value > 0 {
+				p := value / 150
+				entropy += p * math.Log(p)
+			}
+		}
+		entropy = -entropy
+		t.Log("ab", i, entropy)
+		if entropy > .5 {
+			t.Fatal("entropy is greater than .5")
+		}
+	}
+	for i := range ba {
+		entropy := 0.0
+		for _, value := range ba[i] {
+			if value > 0 {
+				p := value / 150
+				entropy += p * math.Log(p)
+			}
+		}
+		entropy = -entropy
+		t.Log("ba", i, entropy)
+		if entropy > .5 {
+			t.Fatal("entropy is greater than .5")
+		}
 	}
 }
 

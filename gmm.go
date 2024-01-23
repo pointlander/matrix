@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"runtime"
@@ -184,7 +183,6 @@ func (g *GMM) GMM(input Matrix) []int {
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].C < samples[j].C
 		})
-		fmt.Println(samples[0].C)
 
 		mean, stddev := 0.0, 0.0
 		for i := range samples {
