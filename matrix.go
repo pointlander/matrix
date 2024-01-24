@@ -15,10 +15,6 @@ import (
 const (
 	// S is the scaling factor for the softmax
 	S = 1.0 - 1e-300
-	// Window is the window size
-	Window = 64
-	// Samples is the number of samples to take
-	Samples = 1024
 )
 
 // Random is a random variable

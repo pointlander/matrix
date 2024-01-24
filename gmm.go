@@ -20,16 +20,12 @@ type GMM struct {
 // https://github.com/Ransaka/GMM-from-scratch
 // https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 func NewGMM(input Matrix, clusters int) GMM {
-	rng := rand.New(rand.NewSource(3))
-	vars := 2*clusters + 1
-	const (
-		n = 16
-	)
+	const n = 16
 	o := Optimizer{
 		N:      n,
 		Length: n * n * n,
 		Scale:  .01,
-		Rng:    rng,
+		Rng:    rand.New(rand.NewSource(3)),
 		Cost: func(samples []Sample, a ...Matrix) {
 			done, cpus := make(chan bool, 8), runtime.NumCPU()
 			process := func(j int) {
@@ -121,7 +117,7 @@ func NewGMM(input Matrix, clusters int) GMM {
 		diff := float64(value) - mean
 		stddev += diff * diff
 	}
-	o.Vars = make([][3]RandomMatrix, vars)
+	o.Vars = make([][3]RandomMatrix, 2*clusters+1)
 	for v := range o.Vars[:clusters] {
 		o.Vars[v][0] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][0].Data {
