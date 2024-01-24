@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -205,7 +204,7 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 }
 
 // Meta is the meta optimizer
-func Meta(rng *rand.Rand, n int, scale float64, vars int,
+func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
 	source := make([][6]RandomMatrix, vars, vars)
 	for i := range source {
@@ -215,10 +214,11 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 	}
 	type Meta struct {
 		Optimizer
-		Cost float64
+		Cost   float64
+		Sample Sample
 	}
 	for {
-		metas := make([]Meta, 64)
+		metas := make([]Meta, metaSamples)
 		for i := range metas {
 			metas[i].N = n
 			metas[i].Length = n * n * n
@@ -243,15 +243,15 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		for i := range metas {
 			s := metas[i].Optimize(1e-6)
 			metas[i].Cost = s.Cost
-			if s.Cost < 1e-1 {
-				return s
-			}
+			metas[i].Sample = s
 		}
 
 		sort.Slice(metas, func(i, j int) bool {
 			return metas[i].Cost < metas[j].Cost
 		})
-		fmt.Println("meta", metas[0].Cost)
+		if metas[0].Cost < metaMin {
+			return metas[0].Sample
+		}
 
 		mean, stddev := 0.0, 0.0
 		for i := range metas {
@@ -265,7 +265,6 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		stddev /= float64(len(metas))
 		stddev = math.Sqrt(stddev)
 
-		fmt.Println(mean, stddev)
 		if stddev == 0 {
 			for j := range source {
 				for v := range source[j][:3] {
@@ -321,7 +320,7 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		weights, sum := make([]float64, len(metas), len(metas)), 0.0
 		for i := range weights {
 			diff := (metas[i].Cost - mean) / stddev
-			weight := math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+			weight := math.Exp(-(diff*diff/2 + metaScale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += weight
 			weights[i] = weight
 		}

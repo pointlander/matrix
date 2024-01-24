@@ -601,7 +601,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	}, a)
 	s := optimizer.Optimize(1e-9)*/
 	identity := NewIdentityMatrix(a.Cols)
-	s := Meta(rng, 4, .1, 1, func(samples []Sample, x ...Matrix) {
+	s := Meta(128, .01, .1, rng, 4, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
