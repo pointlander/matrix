@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -200,5 +201,180 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 			return s
 		}
 		last = s.Cost
+	}
+}
+
+// Meta is the meta optimizer
+func Meta(rng *rand.Rand, n int, scale float64, vars int,
+	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
+	source := make([][6]RandomMatrix, vars, vars)
+	for i := range source {
+		for j := range source[i] {
+			source[i][j] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+		}
+	}
+	type Meta struct {
+		Optimizer
+		Cost float64
+	}
+	for {
+		metas := make([]Meta, 8)
+		for i := range metas {
+			metas[i].N = n
+			metas[i].Length = n * n * n
+			metas[i].Scale = scale
+			metas[i].Rng = rand.New(rand.NewSource(rng.Int63() + 1))
+			metas[i].Vars = make([][3]RandomMatrix, vars)
+			for j := range metas[i].Vars {
+				for k := range metas[i].Vars[j] {
+					dist := NewRandomMatrix(a[0].Cols, a[0].Rows)
+					for l := range source[j][k].Data {
+						r := source[j][k].Data[l]
+						dist.Data[l].Mean = rng.NormFloat64()*r.StdDev + r.Mean
+						r = source[j][k+3].Data[l]
+						dist.Data[l].StdDev = rng.NormFloat64()*r.StdDev + r.Mean
+					}
+					metas[i].Vars[j][k] = dist
+				}
+			}
+			metas[i].Optimizer.Cost = cost
+		}
+
+		for i := range metas {
+			s := metas[i].Optimize(1e-6)
+			metas[i].Cost = s.Cost
+			if s.Cost < 1e-3 {
+				return s
+			}
+		}
+
+		sort.Slice(metas, func(i, j int) bool {
+			return metas[i].Cost < metas[j].Cost
+		})
+		fmt.Println("meta", metas[0].Cost)
+
+		mean, stddev := 0.0, 0.0
+		for i := range metas {
+			mean += metas[i].Cost
+		}
+		mean /= float64(len(metas))
+		for i := range metas {
+			diff := mean - metas[i].Cost
+			stddev += diff * diff
+		}
+		stddev /= float64(len(metas))
+		stddev = math.Sqrt(stddev)
+
+		fmt.Println(mean, stddev)
+		if stddev == 0 {
+			for j := range source {
+				for v := range source[j][:3] {
+					vv := NewRandomMatrix(source[j][v].Cols, source[j][v].Rows)
+					for k := range vv.Data {
+						vv.Data[k].StdDev = 0
+					}
+					for k := range metas {
+						for l, value := range metas[k].Vars[j][v].Data {
+							vv.Data[l].Mean += float64(value.Mean) / float64(len(metas))
+						}
+					}
+					for k := range metas {
+						for l, value := range metas[k].Vars[j][v].Data {
+							diff := vv.Data[l].Mean - float64(value.Mean)
+							vv.Data[l].StdDev += diff * diff / float64(len(metas))
+						}
+					}
+					for k := range vv.Data {
+						vv.Data[k].StdDev /= (float64(len(metas)) - 1.0) / float64(len(metas))
+						vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+					}
+					source[j][v] = vv
+				}
+				devs := source[j][3:]
+				for v := range devs {
+					vv := NewRandomMatrix(devs[v].Cols, devs[v].Rows)
+					for k := range vv.Data {
+						vv.Data[k].StdDev = 0
+					}
+					for k := range metas {
+						for l, value := range metas[k].Vars[j][v].Data {
+							vv.Data[l].Mean += float64(value.StdDev) / float64(len(metas))
+						}
+					}
+					for k := range metas {
+						for l, value := range metas[k].Vars[j][v].Data {
+							diff := vv.Data[l].Mean - float64(value.StdDev)
+							vv.Data[l].StdDev += diff * diff / float64(len(metas))
+						}
+					}
+					for k := range vv.Data {
+						vv.Data[k].StdDev /= (float64(len(metas)) - 1.0) / float64(len(metas))
+						vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+					}
+					devs[v] = vv
+				}
+			}
+
+			continue
+		}
+
+		weights, sum := make([]float64, len(metas), len(metas)), 0.0
+		for i := range weights {
+			diff := (metas[i].Cost - mean) / stddev
+			weight := math.Exp(-(diff*diff/2 + metas[i].Scale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+			sum += weight
+			weights[i] = weight
+		}
+		for i := range weights {
+			weights[i] /= sum
+		}
+
+		for j := range source {
+			for v := range source[j][:3] {
+				vv := NewRandomMatrix(source[j][v].Cols, source[j][v].Rows)
+				for k := range vv.Data {
+					vv.Data[k].StdDev = 0
+				}
+				for k := range metas {
+					for l, value := range metas[k].Vars[j][v].Data {
+						vv.Data[l].Mean += weights[k] * float64(value.Mean)
+					}
+				}
+				for k := range metas {
+					for l, value := range metas[k].Vars[j][v].Data {
+						diff := vv.Data[l].Mean - float64(value.Mean)
+						vv.Data[l].StdDev += weights[k] * diff * diff
+					}
+				}
+				for k := range vv.Data {
+					vv.Data[k].StdDev /= (float64(len(metas)) - 1.0) / float64(len(metas))
+					vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+				}
+				source[j][v] = vv
+			}
+			devs := source[j][3:]
+			for v := range devs {
+				vv := NewRandomMatrix(devs[v].Cols, devs[v].Rows)
+				for k := range vv.Data {
+					vv.Data[k].StdDev = 0
+				}
+				for k := range metas {
+					for l, value := range metas[k].Vars[j][v].Data {
+						vv.Data[l].Mean += weights[k] * float64(value.StdDev)
+					}
+				}
+				for k := range metas {
+					for l, value := range metas[k].Vars[j][v].Data {
+						diff := vv.Data[l].Mean - float64(value.StdDev)
+						vv.Data[l].StdDev += weights[k] * diff * diff
+					}
+				}
+				for k := range vv.Data {
+					vv.Data[k].StdDev /= (float64(len(metas)) - 1.0) / float64(len(metas))
+					vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+				}
+				devs[v] = vv
+			}
+		}
 	}
 }

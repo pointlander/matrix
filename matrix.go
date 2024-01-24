@@ -581,7 +581,7 @@ func Determinant(a Matrix) (float64, error) {
 
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
-	identity := NewIdentityMatrix(a.Cols)
+	/*identity := NewIdentityMatrix(a.Cols)
 	optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
@@ -599,7 +599,25 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			<-done
 		}
 	}, a)
-	s := optimizer.Optimize(1e-9)
+	s := optimizer.Optimize(1e-9)*/
+	identity := NewIdentityMatrix(a.Cols)
+	s := Meta(rng, 10, .1, 1, func(samples []Sample, x ...Matrix) {
+		done := make(chan bool, 8)
+		process := func(index int) {
+			x := samples[index].Vars[0][0]
+			y := samples[index].Vars[0][1]
+			z := samples[index].Vars[0][2]
+			cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+			samples[index].Cost = float64(cost.Data[0])
+			done <- true
+		}
+		for j := range samples {
+			go process(j)
+		}
+		for range samples {
+			<-done
+		}
+	}, a)
 	return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
 }
 
