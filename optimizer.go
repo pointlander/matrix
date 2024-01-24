@@ -218,7 +218,7 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		Cost float64
 	}
 	for {
-		metas := make([]Meta, 8)
+		metas := make([]Meta, 64)
 		for i := range metas {
 			metas[i].N = n
 			metas[i].Length = n * n * n
@@ -243,7 +243,7 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		for i := range metas {
 			s := metas[i].Optimize(1e-6)
 			metas[i].Cost = s.Cost
-			if s.Cost < 1e-3 {
+			if s.Cost < 1e-1 {
 				return s
 			}
 		}
@@ -321,7 +321,7 @@ func Meta(rng *rand.Rand, n int, scale float64, vars int,
 		weights, sum := make([]float64, len(metas), len(metas)), 0.0
 		for i := range weights {
 			diff := (metas[i].Cost - mean) / stddev
-			weight := math.Exp(-(diff*diff/2 + metas[i].Scale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+			weight := math.Exp(-(diff*diff/2 + .1*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
 			sum += weight
 			weights[i] = weight
 		}
