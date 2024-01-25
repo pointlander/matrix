@@ -5,125 +5,61 @@
 package experimental
 
 import (
-	"math"
 	"math/rand"
-	"sort"
 
 	. "github.com/pointlander/matrix"
 )
 
 // LUFactor factors a matrix into lower and upper
 func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
-	window := 4
-	mean, stddev := 0.0, 0.0
-	for _, value := range a.Data {
-		mean += float64(value)
-	}
-	mean /= float64(len(a.Data))
-	for _, value := range a.Data {
-		diff := mean - float64(value)
-		stddev += diff * diff
-	}
-	stddev = math.Sqrt(stddev)
-	rl, ru := NewRandomMatrix(a.Cols, a.Rows), NewRandomMatrix(a.Cols, a.Rows)
-	for i := range rl.Data {
-		rl.Data[i].Mean = mean
-		rl.Data[i].StdDev = stddev
-	}
-	for i := range ru.Data {
-		ru.Data[i].Mean = mean
-		ru.Data[i].StdDev = stddev
-	}
-	type Sample struct {
-		Cost float64
-		L    Matrix
-		U    Matrix
-	}
-	samples := make([]Sample, 256)
-	for i := 0; i < 2*1024; i++ {
-		set := rng.Perm(len(rl.Data))
-		for s := 0; s < len(rl.Data); s += len(rl.Data) / 2 {
-			for j := range samples {
-				sl, su := rl.Sample(rng), ru.Sample(rng)
-				for x := 0; x < sl.Cols; x++ {
-					for y := 0; y < x; y++ {
-						sl.Data[y*sl.Cols+x] = 0
-					}
+	s := Meta(128, .1, .1, rng, 4, .1, 2, func(samples []Sample, x ...Matrix) {
+		done := make(chan bool, 8)
+		process := func(index int) {
+			xl := samples[index].Vars[0][0]
+			yl := samples[index].Vars[0][1]
+			zl := samples[index].Vars[0][2]
+			sl := Add(xl, H(yl, zl))
+			xu := samples[index].Vars[1][0]
+			yu := samples[index].Vars[1][1]
+			zu := samples[index].Vars[1][2]
+			su := Add(xu, H(yu, zu))
+			for x := 0; x < sl.Cols; x++ {
+				for y := 0; y < x; y++ {
+					sl.Data[y*sl.Cols+x] = 0
 				}
-				for x := 0; x < su.Cols; x++ {
-					for y := x + 1; y < su.Rows; y++ {
-						su.Data[y*su.Cols+x] = 0
-					}
-				}
-				end := s + len(rl.Data)/2
-				if end > len(rl.Data) {
-					end = len(rl.Data)
-				}
-				cost := Avg(QuadraticSet(MulT(sl, T(su)), a, set[s:end]))
-				samples[j].L = sl
-				samples[j].U = su
-				samples[j].Cost = float64(cost.Data[0])
 			}
-			sort.Slice(samples, func(i, j int) bool {
-				return samples[i].Cost < samples[j].Cost
-			})
-
-			weights, sum := make([]float64, window), 0.0
-			for i := range weights {
-				sum += 1 / samples[i].Cost
-				weights[i] = 1 / samples[i].Cost
+			for x := 0; x < su.Cols; x++ {
+				for y := x + 1; y < su.Rows; y++ {
+					su.Data[y*su.Cols+x] = 0
+				}
 			}
-			for i := range weights {
-				weights[i] /= sum
-			}
-
-			if i%2 == 0 {
-				ll := NewRandomMatrix(a.Cols, a.Rows)
-				for j := range ll.Data {
-					ll.Data[j].StdDev = 0
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].L.Data {
-						ll.Data[j].Mean += weights[i] * float64(value)
-					}
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].L.Data {
-						diff := ll.Data[j].Mean - float64(value)
-						ll.Data[j].StdDev += weights[i] * diff * diff
-					}
-				}
-				for i := range ll.Data {
-					ll.Data[i].StdDev /= (float64(window) - 1.0) / float64(window)
-					ll.Data[i].StdDev = math.Sqrt(ll.Data[i].StdDev)
-				}
-				rl = ll
-			} else {
-				uu := NewRandomMatrix(a.Cols, a.Rows)
-				for j := range uu.Data {
-					uu.Data[j].StdDev = 0
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].U.Data {
-						uu.Data[j].Mean += weights[i] * float64(value)
-					}
-				}
-				for i := range samples[:window] {
-					for j, value := range samples[i].U.Data {
-						diff := uu.Data[j].Mean - float64(value)
-						uu.Data[j].StdDev += weights[i] * diff * diff
-					}
-				}
-				for i := range uu.Data {
-					uu.Data[i].StdDev /= (float64(window) - 1.0) / float64(window)
-					uu.Data[i].StdDev = math.Sqrt(uu.Data[i].StdDev)
-				}
-				ru = uu
-			}
+			samples[index].Cost = float64(Avg(Quadratic(MulT(sl, T(su)), a)).Data[0])
+			done <- true
 		}
-		if samples[0].Cost < 1e-18 {
-			break
+		for j := range samples {
+			go process(j)
+		}
+		for range samples {
+			<-done
+		}
+	}, a)
+	xl := s.Vars[0][0]
+	yl := s.Vars[0][1]
+	zl := s.Vars[0][2]
+	sl := Add(xl, H(yl, zl))
+	xu := s.Vars[1][0]
+	yu := s.Vars[1][1]
+	zu := s.Vars[1][2]
+	su := Add(xu, H(yu, zu))
+	for x := 0; x < sl.Cols; x++ {
+		for y := 0; y < x; y++ {
+			sl.Data[y*sl.Cols+x] = 0
 		}
 	}
-	return samples[0].L, samples[0].U
+	for x := 0; x < su.Cols; x++ {
+		for y := x + 1; y < su.Rows; y++ {
+			su.Data[y*su.Cols+x] = 0
+		}
+	}
+	return sl, su
 }
