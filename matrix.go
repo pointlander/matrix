@@ -415,7 +415,7 @@ func taylor64(values []float64) {
 // SelfAttention computes the self attention of Q, K, V
 func SelfAttention(Q, K, V Matrix) Matrix {
 	o := Matrix{
-		Cols: V.Rows,
+		Cols: V.Cols,
 		Rows: K.Rows,
 		Data: make([]float32, 0, V.Rows*K.Rows),
 	}
