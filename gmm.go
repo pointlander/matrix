@@ -54,7 +54,7 @@ func NewGMM(input Matrix, clusters int) GMM {
 						x := NewMatrix(input.Cols, 1, row...)
 						y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
 						pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
-							math.Pow(det, 1/2) *
+							math.Sqrt(math.Abs(det)) *
 							math.Exp(float64(-y.Data[0])/2)
 						cs[k][f] = float64(samples[j].Vars[2*clusters][0].Data[f*clusters+k]) * pdf
 					}
@@ -181,7 +181,7 @@ func (g *GMM) Optimize(input Matrix) []int {
 			det, _ := Determinant(E)
 			y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
 			pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
-				math.Pow(det, 1/2) *
+				math.Sqrt(math.Abs(det)) *
 				math.Exp(float64(-y.Data[0])/2)
 			pdf *= float64(sample.Vars[2*g.Clusters][0].Data[i*g.Clusters+j])
 			if pdf > max {
