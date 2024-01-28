@@ -319,7 +319,7 @@ func TestIrisSimplified(t *testing.T) {
 	//gmm.Scale = .01
 	t.Log("Optimize")
 	//out := gmm.Optimize(embedding)
-	out := MetaGMM(embedding, 3)
+	out := MetaGMM(in, 3)
 	for i, value := range out {
 		flowers[i].Cluster = value
 	}

@@ -207,7 +207,7 @@ func MetaGMM(input Matrix, clusters int) []int {
 		cluster++
 	}
 	a[cluster] = NewCoord(clusters, input.Rows)
-	sample := Meta(512, .01, .1, rng, 4, .1, 2*clusters+1, func(samples []Sample, a ...Matrix) {
+	sample := Meta(256, .09, .1, rng, 4, .1, 2*clusters+1, func(samples []Sample, a ...Matrix) {
 		done, cpus := make(chan bool, 8), runtime.NumCPU()
 		process := func(j int) {
 			for l := range samples[j].Vars[2*clusters] {
@@ -235,7 +235,7 @@ func MetaGMM(input Matrix, clusters int) []int {
 					x := NewMatrix(input.Cols, 1, row...)
 					y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
 					pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
-						math.Pow(det, 1/2) *
+						math.Sqrt(math.Abs(det)) *
 						math.Exp(float64(-y.Data[0])/2)
 					cs[k][f] = float64(samples[j].Vars[2*clusters][0].Data[f*clusters+k]) * pdf
 				}
@@ -299,7 +299,7 @@ func MetaGMM(input Matrix, clusters int) []int {
 			det, _ := Determinant(E)
 			y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
 			pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
-				math.Pow(det, 1/2) *
+				math.Sqrt(math.Abs(det)) *
 				math.Exp(float64(-y.Data[0])/2)
 			pdf *= float64(sample.Vars[2*clusters][0].Data[i*clusters+j])
 			if pdf > max {
