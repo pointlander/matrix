@@ -182,7 +182,9 @@ func TestIris(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	flowers := make([]Flower, len(Iris))
 	for i := range flowers {
-		flowers[i].Measures = Iris[i][:4]
+		measures := make([]float32, 4)
+		copy(measures, Iris[i][:4])
+		flowers[i].Measures = measures
 		flowers[i].Label = Iris[i][4]
 	}
 
@@ -264,6 +266,97 @@ func TestIris(t *testing.T) {
 		entropy = -entropy
 		t.Log("ba", i, entropy)
 		if entropy > .5 {
+			t.Fatal("entropy is greater than .5")
+		}
+	}
+}
+
+func TestIrisSimplified(t *testing.T) {
+	const (
+		// Inputs is the number of inputs
+		Inputs = 4
+		// Outputs is the number of outputs
+		Outputs = 4
+		// Embedding is the embedding size
+		Embedding = 3 * 4
+		// Clusters is the number of clusters
+		Clusters = 3
+	)
+	type Flower struct {
+		Measures []float32
+		Label    float32
+		I        int
+		Cluster  int
+	}
+
+	flowers := make([]Flower, len(Iris))
+	for i := range flowers {
+		measures := make([]float32, 4)
+		copy(measures, Iris[i][:4])
+		flowers[i].Measures = measures
+		flowers[i].Label = Iris[i][4]
+	}
+
+	max := float32(0.0)
+	for _, value := range flowers {
+		for _, v := range value.Measures {
+			if v > max {
+				max = v
+			}
+		}
+	}
+	for i, value := range flowers {
+		for i := range value.Measures {
+			value.Measures[i] /= max
+		}
+		flowers[i].I = i
+	}
+	in := NewMatrix(4, len(flowers))
+	for i := range flowers {
+		in.Data = append(in.Data, flowers[i].Measures...)
+	}
+	out := MetaGMM(in, 3)
+	for i, value := range out {
+		flowers[i].Cluster = value
+	}
+	ab, ba := [3][3]float64{}, [3][3]float64{}
+	for i := range flowers {
+		t.Log(IrisNames[flowers[i].Label], flowers[i].Cluster)
+		a := int(flowers[i].Label)
+		b := flowers[i].Cluster
+		ab[a][b]++
+		ba[b][a]++
+	}
+	entropy := 0.0
+	for i := 0; i < 3; i++ {
+		entropy += (1.0 / 3.0) * math.Log(1.0/3.0)
+	}
+	t.Log(-entropy, -(1.0/3.0)*math.Log(1.0/3.0))
+	for i := range ab {
+		entropy := 0.0
+		for _, value := range ab[i] {
+			if value > 0 {
+				p := value / 150
+				entropy += p * math.Log(p)
+			}
+		}
+		entropy = -entropy
+		t.Log("ab", i, entropy)
+		if entropy > .57 {
+			t.Fatal("entropy is greater than .5")
+		}
+	}
+	for i := range ba {
+		entropy := 0.0
+		for _, value := range ba[i] {
+			if value > 0 {
+				p := value / 150
+				entropy += p * math.Log(p)
+			}
+		}
+		entropy = -entropy
+		t.Log("ba", i, entropy)
+		if entropy > .57 {
 			t.Fatal("entropy is greater than .5")
 		}
 	}

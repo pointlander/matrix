@@ -207,9 +207,17 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
 	source := make([][6]RandomMatrix, vars, vars)
-	for i := range source {
-		for j := range source[i] {
-			source[i][j] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+	if vars != len(a) {
+		for i := range source {
+			for j := range source[i] {
+				source[i][j] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			}
+		}
+	} else {
+		for i := range source {
+			for j := range source[i] {
+				source[i][j] = NewRandomMatrix(a[i].Cols, a[i].Rows)
+			}
 		}
 	}
 	type Meta struct {
@@ -227,7 +235,7 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 			metas[i].Vars = make([][3]RandomMatrix, vars)
 			for j := range metas[i].Vars {
 				for k := range metas[i].Vars[j] {
-					dist := NewRandomMatrix(a[0].Cols, a[0].Rows)
+					dist := NewRandomMatrix(source[j][k].Cols, source[j][k].Rows)
 					for l := range source[j][k].Data {
 						r := source[j][k].Data[l]
 						dist.Data[l].Mean = rng.NormFloat64()*r.StdDev + r.Mean
