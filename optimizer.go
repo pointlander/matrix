@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -258,7 +257,6 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 		sort.Slice(metas, func(i, j int) bool {
 			return metas[i].Cost < metas[j].Cost
 		})
-		fmt.Println(metas[0].Cost)
 		if metas[0].Cost < metaMin {
 			return metas[0].Sample
 		}

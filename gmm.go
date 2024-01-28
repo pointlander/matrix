@@ -207,7 +207,7 @@ func MetaGMM(input Matrix, clusters int) []int {
 		cluster++
 	}
 	a[cluster] = NewCoord(clusters, input.Rows)
-	sample := Meta(256, .09, .1, rng, 4, .1, 2*clusters+1, func(samples []Sample, a ...Matrix) {
+	sample := Meta(256, .082, .1, rng, 4, .1, 2*clusters+1, func(samples []Sample, a ...Matrix) {
 		done, cpus := make(chan bool, 8), runtime.NumCPU()
 		process := func(j int) {
 			for l := range samples[j].Vars[2*clusters] {
