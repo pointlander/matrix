@@ -7,6 +7,7 @@ package matrix
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"sort"
 )
 
@@ -248,10 +249,28 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 			metas[i].Optimizer.Cost = cost
 		}
 
-		for i := range metas {
+		index, flight, cpus, done := 0, 0, runtime.NumCPU(), make(chan bool, 8)
+		process := func(i int) {
 			s := metas[i].Optimize(1e-6)
 			metas[i].Cost = s.Cost
 			metas[i].Sample = s
+			done <- true
+		}
+		for index < len(metas) && flight < cpus {
+			go process(index)
+			index++
+			flight++
+		}
+		for index < len(metas) {
+			<-done
+			flight--
+
+			go process(index)
+			index++
+			flight++
+		}
+		for i := 0; i < flight; i++ {
+			<-done
 		}
 
 		sort.Slice(metas, func(i, j int) bool {
