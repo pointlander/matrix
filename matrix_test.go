@@ -395,3 +395,64 @@ func BenchmarkTruncatedAllocate(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkInverse(b *testing.B) {
+	rng := rand.New(rand.NewSource(1))
+	a := NewMatrix(2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	identity := NewIdentityMatrix(a.Cols)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []Sample, x ...Matrix) {
+			done := make(chan bool, 8)
+			process := func(index int) {
+				x := samples[index].Vars[0][0]
+				y := samples[index].Vars[0][1]
+				z := samples[index].Vars[0][2]
+				cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+				samples[index].Cost = float64(cost.Data[0])
+				done <- true
+			}
+			for j := range samples {
+				go process(j)
+			}
+			for range samples {
+				<-done
+			}
+		}, a)
+		optimizer.Optimize(1e-9)
+	}
+}
+
+func BenchmarkInverseMeta(b *testing.B) {
+	rng := rand.New(rand.NewSource(1))
+	a := NewMatrix(2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	identity := NewIdentityMatrix(a.Cols)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Meta(128, .1, .1, rng, 4, .1, 1, func(samples []Sample, x ...Matrix) {
+			done := make(chan bool, 8)
+			process := func(index int) {
+				x := samples[index].Vars[0][0]
+				y := samples[index].Vars[0][1]
+				z := samples[index].Vars[0][2]
+				cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+				samples[index].Cost = float64(cost.Data[0])
+				done <- true
+			}
+			for j := range samples {
+				go process(j)
+			}
+			for range samples {
+				<-done
+			}
+		}, a)
+	}
+}
