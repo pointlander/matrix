@@ -694,3 +694,33 @@ func (m Multi) Sample(rng *rand.Rand) Matrix {
 	}
 	return Add(MulT(m.A, s), m.U)
 }
+
+// LinearRegression computes linear regression
+// https://www.geeksforgeeks.org/linear-regression-python-implementation/
+func LinearRegression(x, y Matrix) (b0, b1 float64) {
+	n := float64(len(x.Data))
+	xu := 0.0
+	for _, value := range x.Data {
+		xu += float64(value)
+	}
+	xu /= n
+	yu := 0.0
+	for _, value := range y.Data {
+		yu += float64(value)
+	}
+	yu /= n
+	ssxx, ssxy := 0.0, 0.0
+	for i, value := range x.Data {
+		/*diffx := float64(value) - xu
+		ssxx += diffx * diffx
+		diffy := float64(y.Data[i]) - yu
+		ssxy += diffx * diffy*/
+		ssxy += float64(y.Data[i]) * float64(value)
+		ssxx += float64(value) * float64(value)
+	}
+	ssxy -= n * yu * xu
+	ssxx -= n * xu * xu
+	b1 = ssxy / ssxx
+	b0 = yu - b1*xu
+	return b0, b1
+}

@@ -362,6 +362,18 @@ func TestIrisSimplified(t *testing.T) {
 	}
 }
 
+func TestLinearRegression(t *testing.T) {
+	x := NewMatrix(10, 1, []float32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}...)
+	y := NewMatrix(10, 1, []float32{1, 3, 2, 5, 7, 8, 8, 9, 10, 12}...)
+	b0, b1 := LinearRegression(x, y)
+	if math.Round(float64(b0)*1000) != math.Round(1.236*1000) {
+		t.Fatal("result should be 1.236", b0)
+	}
+	if math.Round(float64(b1)*1000) != math.Round(1.170*1000) {
+		t.Fatal("result should be 1.170", b1)
+	}
+}
+
 func BenchmarkMulti(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	b.ResetTimer()
