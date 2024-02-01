@@ -19,6 +19,7 @@ type Optimizer struct {
 	Rng    *rand.Rand
 	Vars   [][3]RandomMatrix
 	Cost   func(samples []Sample, a ...Matrix)
+	Reg    bool
 }
 
 // Sample is a sample of the optimizer
@@ -111,6 +112,35 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	sort.Slice(samples, func(i, j int) bool {
 		return samples[i].Cost < samples[j].Cost
 	})
+	length := o.Length
+	if o.Reg {
+		length++
+		x := NewMatrix(len(samples), 1)
+		for _, s := range samples {
+			x.Data = append(x.Data, float32(s.Cost))
+		}
+		sample := Sample{
+			Cost: samples[0].Cost / 2,
+			Vars: make([][3]Matrix, len(samples[0].Vars)),
+		}
+		for v := 0; v < len(o.Vars); v++ {
+			for i := 0; i < 3; i++ {
+				sample.Vars[v][i] = NewZeroMatrix(samples[0].Vars[v][i].Cols, samples[0].Vars[v][i].Rows)
+				for j := 0; j < len(samples[0].Vars[v][i].Data); j++ {
+					y := NewMatrix(len(samples), 1)
+					for _, s := range samples {
+						y.Data = append(y.Data, s.Vars[v][i].Data[j])
+					}
+					b0, b1 := LinearRegression(x, y)
+					sample.Vars[v][i].Data[j] = float32(b1*sample.Cost + b0)
+				}
+			}
+		}
+		samples = append(samples, sample)
+		sort.Slice(samples, func(i, j int) bool {
+			return samples[i].Cost < samples[j].Cost
+		})
+	}
 
 	mean, stddev := 0.0, 0.0
 	for i := range samples {
@@ -153,7 +183,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		return samples[0]
 	}
 
-	weights, sum := make([]float64, o.Length, o.Length), 0.0
+	weights, sum := make([]float64, length, length), 0.0
 	for i := range weights {
 		diff := (samples[i].Cost - mean) / stddev
 		weight := math.Exp(-(diff*diff/2 + o.Scale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
@@ -205,7 +235,7 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 }
 
 // Meta is the meta optimizer
-func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int,
+func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int, reg bool,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
 	source := make([][6]RandomMatrix, vars, vars)
 	if vars != len(a) {
@@ -247,6 +277,7 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 				}
 			}
 			metas[i].Optimizer.Cost = cost
+			metas[i].Optimizer.Reg = reg
 		}
 
 		index, flight, cpus, done := 0, 0, runtime.NumCPU(), make(chan bool, 8)

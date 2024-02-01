@@ -582,7 +582,7 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	identity := NewIdentityMatrix(a.Cols)
-	s := Meta(128, .1, .1, rng, 4, .1, 1, func(samples []Sample, x ...Matrix) {
+	s := Meta(64, .1, .1, rng, 8, .1, 1, true, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
