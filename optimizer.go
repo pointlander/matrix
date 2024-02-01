@@ -117,7 +117,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		x.Data = append(x.Data, float32(s.Cost))
 	}
 	sample := Sample{
-		Cost: samples[0].Cost,
+		Cost: samples[0].Cost / 2,
 		Vars: make([][3]Matrix, len(samples[0].Vars)),
 	}
 	for v := 0; v < len(o.Vars); v++ {
