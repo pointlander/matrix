@@ -449,7 +449,7 @@ func BenchmarkInverseMeta(b *testing.B) {
 	identity := NewIdentityMatrix(a.Cols)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Meta(128, .1, .1, rng, 4, .1, 1, func(samples []Sample, x ...Matrix) {
+		Meta(128, .1, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 			done := make(chan bool, 8)
 			process := func(index int) {
 				x := samples[index].Vars[0][0]

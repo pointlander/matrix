@@ -12,7 +12,7 @@ import (
 
 // LUFactor factors a matrix into lower and upper
 func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
-	s := Meta(128, .1, .1, rng, 4, .1, 2, func(samples []Sample, x ...Matrix) {
+	s := Meta(128, .1, .1, rng, 4, .1, 2, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			xl := samples[index].Vars[0][0]
