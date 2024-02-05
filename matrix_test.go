@@ -94,15 +94,18 @@ func TestInverse(t *testing.T) {
 	)
 	ai := Inverse(rng, a)
 	b := MulT(a, ai)
+	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
 		for j := 0; j < b.Cols; j++ {
 			value := float64(b.Data[i*b.Cols+j])
 			if i == j {
 				if math.Round(value) != 1 {
+					t.Log(ai, b)
 					t.Fatalf("result %d,%d should be 1 but is %f", i, j, value)
 				}
 			} else {
 				if math.Round(value) != 0 {
+					t.Log(ai, b)
 					t.Fatalf("result %d,%d should be 0 but is %f", i, j, value)
 				}
 			}
@@ -117,15 +120,18 @@ func TestInverse(t *testing.T) {
 	)
 	ai = Inverse(rng, a)
 	b = MulT(a, ai)
+	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
 		for j := 0; j < b.Cols; j++ {
 			value := float64(b.Data[i*b.Cols+j])
 			if i == j {
 				if math.Round(value) != 1 {
+					t.Log(ai, b)
 					t.Fatalf("result %d,%d should be 1 but is %f", i, j, value)
 				}
 			} else {
 				if math.Round(value) != 0 {
+					t.Log(ai, b)
 					t.Fatalf("result %d,%d should be 0 but is %f", i, j, value)
 				}
 			}

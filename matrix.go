@@ -433,7 +433,7 @@ func SelfAttention(Q, K, V Matrix) Matrix {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			outputs[j] = vector.Dot(values, V)
 		}
-		softmax(outputs)
+		//softmax(outputs)
 		o.Data = append(o.Data, outputs...)
 	}
 	return o
@@ -582,13 +582,15 @@ func Determinant(a Matrix) (float64, error) {
 // Inverse computes the matrix inverse
 func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 	identity := NewIdentityMatrix(a.Cols)
-	s := Meta(64, .1, .1, rng, 8, .1, 1, true, func(samples []Sample, x ...Matrix) {
+	s := Meta(512, 1e-7, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0]
 			y := samples[index].Vars[0][1]
 			z := samples[index].Vars[0][2]
-			cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+			//ai := Add(x, H(y, z))
+			ai := SelfAttention(x, y, z)
+			cost := Avg(Quadratic(MulT(a, ai), identity))
 			samples[index].Cost = float64(cost.Data[0])
 			done <- true
 		}
@@ -599,7 +601,8 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			<-done
 		}
 	}, a)
-	return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
+	//return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
+	return SelfAttention(s.Vars[0][0], s.Vars[0][1], s.Vars[0][2])
 }
 
 // Multi is a multivariate distribution
