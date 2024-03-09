@@ -20,6 +20,7 @@ type Optimizer struct {
 	Vars   [][3]RandomMatrix
 	Cost   func(samples []Sample, a ...Matrix)
 	Reg    bool
+	Norm   bool
 }
 
 // Sample is a sample of the optimizer
@@ -81,28 +82,39 @@ func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
 
 func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	samples := make([]Sample, o.Length, o.Length)
-	s := make([][][]Matrix, len(o.Vars))
-	for v := range s {
-		s[v] = make([][]Matrix, 3)
-		for j := range s[v] {
-			s[v][j] = make([]Matrix, o.N)
-			for k := range s[v][j] {
-				s[v][j][k] = o.Vars[v][j].Sample(o.Rng)
+	if o.Norm {
+		for i := range samples {
+			samples[i].Vars = make([][3]Matrix, len(o.Vars), len(o.Vars))
+			for v := range samples[i].Vars {
+				for j := range samples[i].Vars[v] {
+					samples[i].Vars[v][j] = o.Vars[v][j].Sample(o.Rng)
+				}
 			}
 		}
-	}
-	for v := range s {
-		index := 0
-		for _, x := range s[v][0] {
-			for _, y := range s[v][1] {
-				for _, z := range s[v][2] {
-					if samples[index].Vars == nil {
-						samples[index].Vars = make([][3]Matrix, len(s), len(s))
+	} else {
+		s := make([][][]Matrix, len(o.Vars))
+		for v := range s {
+			s[v] = make([][]Matrix, 3)
+			for j := range s[v] {
+				s[v][j] = make([]Matrix, o.N)
+				for k := range s[v][j] {
+					s[v][j][k] = o.Vars[v][j].Sample(o.Rng)
+				}
+			}
+		}
+		for v := range s {
+			index := 0
+			for _, x := range s[v][0] {
+				for _, y := range s[v][1] {
+					for _, z := range s[v][2] {
+						if samples[index].Vars == nil {
+							samples[index].Vars = make([][3]Matrix, len(s), len(s))
+						}
+						samples[index].Vars[v][0] = x
+						samples[index].Vars[v][1] = y
+						samples[index].Vars[v][2] = z
+						index++
 					}
-					samples[index].Vars[v][0] = x
-					samples[index].Vars[v][1] = y
-					samples[index].Vars[v][2] = z
-					index++
 				}
 			}
 		}

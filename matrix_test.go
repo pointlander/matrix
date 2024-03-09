@@ -10,6 +10,55 @@ import (
 	"testing"
 )
 
+func TestNorm(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	a := NewMatrix(2, 2)
+	a.Data = append(a.Data,
+		3, 8,
+		4, 6,
+	)
+	identity := NewIdentityMatrix(a.Cols)
+	optimizer := NewOptimizer(rng, 8, .1, 1, func(samples []Sample, x ...Matrix) {
+		done := make(chan bool, 8)
+		process := func(index int) {
+			x := samples[index].Vars[0][0]
+			y := samples[index].Vars[0][1]
+			z := samples[index].Vars[0][2]
+			ai := Add(x, H(y, z))
+			cost := Avg(Quadratic(MulT(a, ai), identity))
+			samples[index].Cost = float64(cost.Data[0])
+			done <- true
+		}
+		for j := range samples {
+			go process(j)
+		}
+		for range samples {
+			<-done
+		}
+	}, a)
+	optimizer.Norm = true
+	s := optimizer.Optimize(1e-6)
+	ai := Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
+	b := MulT(a, ai)
+	t.Log(b)
+	for i := 0; i < b.Rows; i++ {
+		for j := 0; j < b.Cols; j++ {
+			value := float64(b.Data[i*b.Cols+j])
+			if i == j {
+				if math.Round(value) != 1 {
+					t.Log(ai, b)
+					t.Fatalf("result %d,%d should be 1 but is %f", i, j, value)
+				}
+			} else {
+				if math.Round(value) != 0 {
+					t.Log(ai, b)
+					t.Fatalf("result %d,%d should be 0 but is %f", i, j, value)
+				}
+			}
+		}
+	}
+}
+
 func TestLU(t *testing.T) {
 	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
