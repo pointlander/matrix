@@ -20,7 +20,7 @@ func TestLUFactor(t *testing.T) {
 		4, 6,
 	)
 	l, u := LUFactor(rng, a)
-	b := MulT(l, T(u))
+	b := l.MulT(u.T())
 	t.Log(b)
 	if math.Round(float64(b.Data[0])) != 3 {
 		t.Fatal("result should be 3", b.Data[0])

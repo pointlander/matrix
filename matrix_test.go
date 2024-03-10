@@ -24,8 +24,8 @@ func TestNorm(t *testing.T) {
 			x := samples[index].Vars[0][0]
 			y := samples[index].Vars[0][1]
 			z := samples[index].Vars[0][2]
-			ai := Add(x, H(y, z))
-			cost := Avg(Quadratic(MulT(a, ai), identity))
+			ai := x.Add(y.H(z))
+			cost := a.MulT(ai).Quadratic(identity).Avg()
 			samples[index].Cost = float64(cost.Data[0])
 			done <- true
 		}
@@ -38,8 +38,8 @@ func TestNorm(t *testing.T) {
 	}, a)
 	optimizer.Norm = true
 	s := optimizer.Optimize(1e-6)
-	ai := Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
-	b := MulT(a, ai)
+	ai := s.Vars[0][0].Add(s.Vars[0][1].H(s.Vars[0][2]))
+	b := a.MulT(ai)
 	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
 		for j := 0; j < b.Cols; j++ {
@@ -65,8 +65,8 @@ func TestLU(t *testing.T) {
 		3, 8,
 		4, 6,
 	)
-	l, u := LU(a)
-	b := Mul(l, u)
+	l, u := a.LU()
+	b := l.Mul(u)
 	if math.Round(float64(b.Data[0])) != 3 {
 		t.Fatal("result should be 3", b.Data[0])
 	}
@@ -86,8 +86,8 @@ func TestLU(t *testing.T) {
 		4, -2, 5,
 		2, 8, 7,
 	)
-	l, u = LU(a)
-	t.Log(MulT(l, T(u)))
+	l, u = a.LU()
+	t.Log(l.MulT(u.T()))
 }
 
 func TestDeterminant(t *testing.T) {
@@ -96,7 +96,7 @@ func TestDeterminant(t *testing.T) {
 		3, 8,
 		4, 6,
 	)
-	d, err := Determinant(a)
+	d, err := a.Determinant()
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +110,7 @@ func TestDeterminant(t *testing.T) {
 		4, -2, 5,
 		2, 8, 7,
 	)
-	d, err = Determinant(a)
+	d, err = a.Determinant()
 	if err != nil {
 		panic(err)
 	}
@@ -125,7 +125,7 @@ func TestDeterminant(t *testing.T) {
 		0, 4, 0, 0,
 		2, 3, 2, 8,
 	)
-	d, err = Determinant(a)
+	d, err = a.Determinant()
 	if err != nil {
 		panic(err)
 	}
@@ -141,8 +141,8 @@ func TestInverse(t *testing.T) {
 		3, 8,
 		4, 6,
 	)
-	ai := Inverse(rng, a)
-	b := MulT(a, ai)
+	ai := a.Inverse(rng)
+	b := a.MulT(ai)
 	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
 		for j := 0; j < b.Cols; j++ {
@@ -167,8 +167,8 @@ func TestInverse(t *testing.T) {
 		4, -2, 5,
 		2, 8, 7,
 	)
-	ai = Inverse(rng, a)
-	b = MulT(a, ai)
+	ai = a.Inverse(rng)
+	b = a.MulT(ai)
 	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
 		for j := 0; j < b.Cols; j++ {
@@ -199,7 +199,7 @@ func TestMulti(t *testing.T) {
 		multi.E.Data = append(multi.E.Data, 1, 3.0/5.0, 3.0/5.0, 2)
 		multi.U.Data = append(multi.U.Data, 0, 0)
 		multi.LearnA(rng, nil)
-		e := MulT(multi.A, T(multi.A))
+		e := multi.A.MulT(multi.A.T())
 		if math.Round(float64(e.Data[0])*10) != 10 {
 			t.Fatal("result should be 1", e.Data[0])
 		}
@@ -479,7 +479,7 @@ func BenchmarkInverse(b *testing.B) {
 				x := samples[index].Vars[0][0]
 				y := samples[index].Vars[0][1]
 				z := samples[index].Vars[0][2]
-				cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+				cost := a.MulT(x.Add(y.H(z))).Quadratic(identity).Avg()
 				samples[index].Cost = float64(cost.Data[0])
 				done <- true
 			}
@@ -510,7 +510,7 @@ func BenchmarkInverseMeta(b *testing.B) {
 				x := samples[index].Vars[0][0]
 				y := samples[index].Vars[0][1]
 				z := samples[index].Vars[0][2]
-				cost := Avg(Quadratic(MulT(a, Add(x, H(y, z))), identity))
+				cost := a.MulT(x.Add(y.H(z))).Quadratic(identity).Avg()
 				samples[index].Cost = float64(cost.Data[0])
 				done <- true
 			}

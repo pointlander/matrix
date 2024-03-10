@@ -18,11 +18,11 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 			xl := samples[index].Vars[0][0]
 			yl := samples[index].Vars[0][1]
 			zl := samples[index].Vars[0][2]
-			sl := Add(xl, H(yl, zl))
+			sl := xl.Add(yl.H(zl))
 			xu := samples[index].Vars[1][0]
 			yu := samples[index].Vars[1][1]
 			zu := samples[index].Vars[1][2]
-			su := Add(xu, H(yu, zu))
+			su := xu.Add(yu.H(zu))
 			for x := 0; x < sl.Cols; x++ {
 				for y := 0; y < x; y++ {
 					sl.Data[y*sl.Cols+x] = 0
@@ -33,7 +33,7 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 					su.Data[y*su.Cols+x] = 0
 				}
 			}
-			samples[index].Cost = float64(Avg(Quadratic(MulT(sl, T(su)), a)).Data[0])
+			samples[index].Cost = float64(sl.MulT(su.T()).Quadratic(a).Avg().Data[0])
 			done <- true
 		}
 		for j := range samples {
@@ -46,11 +46,11 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 	xl := s.Vars[0][0]
 	yl := s.Vars[0][1]
 	zl := s.Vars[0][2]
-	sl := Add(xl, H(yl, zl))
+	sl := xl.Add(yl.H(zl))
 	xu := s.Vars[1][0]
 	yu := s.Vars[1][1]
 	zu := s.Vars[1][2]
-	su := Add(xu, H(yu, zu))
+	su := xu.Add(yu.H(zu))
 	for x := 0; x < sl.Cols; x++ {
 		for y := 0; y < x; y++ {
 			sl.Data[y*sl.Cols+x] = 0

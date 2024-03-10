@@ -46,13 +46,14 @@ func NewGMM(input Matrix, clusters int) GMM {
 					cs[k] = make([]float64, input.Rows, input.Rows)
 				}
 				for k := 0; k < clusters; k++ {
-					E := Add(samples[j].Vars[k][0], H(samples[j].Vars[k][1], samples[j].Vars[k][2]))
-					U := Add(samples[j].Vars[k+clusters][0], H(samples[j].Vars[k+clusters][1], samples[j].Vars[k+clusters][2]))
-					det, _ := Determinant(E)
+					E := samples[j].Vars[k][0].Add(samples[j].Vars[k][1].H(samples[j].Vars[k][2]))
+					U := samples[j].Vars[k+clusters][0].
+						Add(samples[j].Vars[k+clusters][1].H(samples[j].Vars[k+clusters][2]))
+					det, _ := E.Determinant()
 					for f := 0; f < input.Rows; f++ {
 						row := input.Data[f*input.Cols : (f+1)*input.Cols]
 						x := NewMatrix(input.Cols, 1, row...)
-						y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+						y := x.Sub(U).MulT(E).T().MulT(x.Sub(U))
 						pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 							math.Sqrt(math.Abs(det)) *
 							math.Exp(float64(-y.Data[0])/2)
@@ -176,10 +177,10 @@ func (g *GMM) Optimize(input Matrix) []int {
 
 		index, max := 0, 0.0
 		for j := 0; j < g.Clusters; j++ {
-			E := Add(sample.Vars[j][0], H(sample.Vars[j][1], sample.Vars[j][2]))
-			U := Add(sample.Vars[j+g.Clusters][0], H(sample.Vars[j+g.Clusters][1], sample.Vars[j+g.Clusters][2]))
-			det, _ := Determinant(E)
-			y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+			E := sample.Vars[j][0].Add(sample.Vars[j][1].H(sample.Vars[j][2]))
+			U := sample.Vars[j+g.Clusters][0].Add(sample.Vars[j+g.Clusters][1].H(sample.Vars[j+g.Clusters][2]))
+			det, _ := E.Determinant()
+			y := x.Sub(U).MulT(E).T().MulT(x.Sub(U))
 			pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 				math.Sqrt(math.Abs(det)) *
 				math.Exp(float64(-y.Data[0])/2)
@@ -227,13 +228,13 @@ func MetaGMM(input Matrix, clusters int) []int {
 				cs[k] = make([]float64, input.Rows, input.Rows)
 			}
 			for k := 0; k < clusters; k++ {
-				E := Add(samples[j].Vars[k][0], H(samples[j].Vars[k][1], samples[j].Vars[k][2]))
-				U := Add(samples[j].Vars[k+clusters][0], H(samples[j].Vars[k+clusters][1], samples[j].Vars[k+clusters][2]))
-				det, _ := Determinant(E)
+				E := samples[j].Vars[k][0].Add(samples[j].Vars[k][1].H(samples[j].Vars[k][2]))
+				U := samples[j].Vars[k+clusters][0].Add(samples[j].Vars[k+clusters][1].H(samples[j].Vars[k+clusters][2]))
+				det, _ := E.Determinant()
 				for f := 0; f < input.Rows; f++ {
 					row := input.Data[f*input.Cols : (f+1)*input.Cols]
 					x := NewMatrix(input.Cols, 1, row...)
-					y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+					y := x.Sub(U).MulT(E).T().MulT(x.Sub(U))
 					pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 						math.Sqrt(math.Abs(det)) *
 						math.Exp(float64(-y.Data[0])/2)
@@ -294,10 +295,10 @@ func MetaGMM(input Matrix, clusters int) []int {
 
 		index, max := 0, 0.0
 		for j := 0; j < clusters; j++ {
-			E := Add(sample.Vars[j][0], H(sample.Vars[j][1], sample.Vars[j][2]))
-			U := Add(sample.Vars[j+clusters][0], H(sample.Vars[j+clusters][1], sample.Vars[j+clusters][2]))
-			det, _ := Determinant(E)
-			y := MulT(T(MulT(Sub(x, U), E)), Sub(x, U))
+			E := sample.Vars[j][0].Add(sample.Vars[j][1].H(sample.Vars[j][2]))
+			U := sample.Vars[j+clusters][0].Add(sample.Vars[j+clusters][1].H(sample.Vars[j+clusters][2]))
+			det, _ := E.Determinant()
+			y := x.Sub(U).MulT(E).T().MulT(x.Sub(U))
 			pdf := math.Pow(2*math.Pi, -float64(input.Cols)/2) *
 				math.Sqrt(math.Abs(det)) *
 				math.Exp(float64(-y.Data[0])/2)

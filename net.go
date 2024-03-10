@@ -28,22 +28,22 @@ func NewNet(seed int64, inputs, outputs int) Net {
 					x := samples[i].Vars[0][0]
 					y := samples[i].Vars[0][1]
 					z := samples[i].Vars[0][2]
-					neurons := Add(x, H(y, z))
-					query := MulT(neurons, a[0])
+					neurons := x.Add(y.H(z))
+					query := neurons.MulT(a[0])
 					copy(q.Data[i*outputs:], query.Data)
 				}
 				{
 					x := samples[i].Vars[1][0]
 					y := samples[i].Vars[1][1]
 					z := samples[i].Vars[1][2]
-					key := MulT(Add(x, H(y, z)), a[1])
+					key := x.Add(y.H(z)).MulT(a[1])
 					copy(k.Data[i*outputs:], key.Data)
 				}
 				{
 					x := samples[i].Vars[2][0]
 					y := samples[i].Vars[2][1]
 					z := samples[i].Vars[2][2]
-					value := MulT(Add(x, H(y, z)), a[2])
+					value := x.Add(y.H(z)).MulT(a[2])
 					copy(v.Data[i*outputs:], value.Data)
 				}
 				done <- true
@@ -77,8 +77,8 @@ func NewNet(seed int64, inputs, outputs int) Net {
 // Fire runs the network
 func (n *Net) Fire(query, key, value Matrix) (float64, Matrix, Matrix, Matrix) {
 	s := n.Iterate(query, key, value)
-	q := MulT(Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2])), query)
-	k := MulT(Add(s.Vars[1][0], H(s.Vars[1][1], s.Vars[1][2])), key)
-	v := MulT(Add(s.Vars[2][0], H(s.Vars[2][1], s.Vars[2][2])), value)
+	q := s.Vars[0][0].Add(s.Vars[0][1].H(s.Vars[0][2])).MulT(query)
+	k := s.Vars[1][0].Add(s.Vars[1][1].H(s.Vars[1][2])).MulT(key)
+	v := s.Vars[2][0].Add(s.Vars[2][1].H(s.Vars[2][2])).MulT(value)
 	return s.Cost, q, k, v
 }

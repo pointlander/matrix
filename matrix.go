@@ -138,7 +138,7 @@ func (m Matrix) String() string {
 }
 
 // MulT multiplies two matrices and computes the transpose
-func MulT(m Matrix, n Matrix) Matrix {
+func (m Matrix) MulT(n Matrix) Matrix {
 	if m.Cols != n.Cols {
 		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
 	}
@@ -160,12 +160,12 @@ func MulT(m Matrix, n Matrix) Matrix {
 }
 
 // Mul is regular matrix multiplication
-func Mul(m Matrix, n Matrix) Matrix {
-	return MulT(T(n), m)
+func (m Matrix) Mul(n Matrix) Matrix {
+	return n.T().MulT(m)
 }
 
 // Add adds two float32 matrices
-func Add(m Matrix, n Matrix) Matrix {
+func (m Matrix) Add(n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
 	if lena%lenb != 0 {
 		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
@@ -183,7 +183,7 @@ func Add(m Matrix, n Matrix) Matrix {
 }
 
 // Sub subtracts two float32 matrices
-func Sub(m Matrix, n Matrix) Matrix {
+func (m Matrix) Sub(n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
 	if lena%lenb != 0 {
 		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
@@ -201,7 +201,7 @@ func Sub(m Matrix, n Matrix) Matrix {
 }
 
 // H is the hadamard product of two matricies
-func H(m Matrix, n Matrix) Matrix {
+func (m Matrix) H(n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
 	if lena%lenb != 0 {
 		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
@@ -219,7 +219,7 @@ func H(m Matrix, n Matrix) Matrix {
 }
 
 // Sigmoid computes the sigmoid of a matrix
-func Sigmoid(m Matrix) Matrix {
+func (m Matrix) Sigmoid() Matrix {
 	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
@@ -232,7 +232,7 @@ func Sigmoid(m Matrix) Matrix {
 }
 
 // Step computes the step function of a float32 matrix
-func Step(m Matrix) Matrix {
+func (m Matrix) Step() Matrix {
 	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
@@ -250,7 +250,7 @@ func Step(m Matrix) Matrix {
 }
 
 // Quadratic computes the quadratic loss of two matrices
-func Quadratic(m Matrix, n Matrix) Matrix {
+func (m Matrix) Quadratic(n Matrix) Matrix {
 	size, width := len(m.Data), m.Cols
 	o := Matrix{
 		Cols: m.Rows,
@@ -269,7 +269,7 @@ func Quadratic(m Matrix, n Matrix) Matrix {
 }
 
 // QuadraticSet computes the quadratic loss of sub sets of two matrices
-func QuadraticSet(m Matrix, n Matrix, set []int) Matrix {
+func (m Matrix) QuadraticSet(n Matrix, set []int) Matrix {
 	o := Matrix{
 		Cols: 1,
 		Rows: 1,
@@ -285,7 +285,7 @@ func QuadraticSet(m Matrix, n Matrix, set []int) Matrix {
 }
 
 // Avg computes the avg of a matrix
-func Avg(m Matrix) Matrix {
+func (m Matrix) Avg() Matrix {
 	o := Matrix{
 		Cols: 1,
 		Rows: 1,
@@ -300,7 +300,7 @@ func Avg(m Matrix) Matrix {
 }
 
 // T tramsposes a matrix
-func T(m Matrix) Matrix {
+func (m Matrix) T() Matrix {
 	o := Matrix{
 		Cols: m.Rows,
 		Rows: m.Cols,
@@ -315,7 +315,7 @@ func T(m Matrix) Matrix {
 }
 
 // Normalize normalizes a matrix to the unit vector
-func Normalize(m Matrix) Matrix {
+func (m Matrix) Normalize() Matrix {
 	size, width := len(m.Data), m.Cols
 	o := Matrix{
 		Cols: m.Cols,
@@ -420,7 +420,7 @@ func SelfAttention(Q, K, V Matrix) Matrix {
 		Data: make([]float32, 0, V.Rows*K.Rows),
 	}
 	outputs, values := make([]float32, V.Cols), make([]float32, Q.Rows)
-	V = T(V)
+	V = V.T()
 	for i := 0; i < K.Rows; i++ {
 		K := K.Data[i*K.Cols : (i+1)*K.Cols]
 		for j := 0; j < Q.Rows; j++ {
@@ -442,7 +442,7 @@ func SelfAttention(Q, K, V Matrix) Matrix {
 // SelfEntropy computes the self entropy of Q, K, V
 func SelfEntropy(Q, K, V Matrix) []float32 {
 	entropies, values, results := make([]float32, V.Cols), make([]float32, K.Rows), make([]float32, 0, K.Rows)
-	V = T(V)
+	V = V.T()
 	for i := 0; i < K.Rows; i++ {
 		K := K.Data[i*K.Cols : (i+1)*K.Cols]
 		for j := 0; j < Q.Rows; j++ {
@@ -469,7 +469,7 @@ func SelfEntropy(Q, K, V Matrix) []float32 {
 // SelfEntropy64 computes the self entropy of Q, K, V
 func SelfEntropy64(Q, K, V Matrix) []float64 {
 	entropies, values, results := make([]float64, V.Cols), make([]float64, K.Rows), make([]float64, 0, K.Rows)
-	V = T(V)
+	V = V.T()
 	for i := 0; i < K.Rows; i++ {
 		K := K.Data[i*K.Cols : (i+1)*K.Cols]
 		for j := 0; j < Q.Rows; j++ {
@@ -494,7 +494,7 @@ func SelfEntropy64(Q, K, V Matrix) []float64 {
 }
 
 // Everett is the everett activation function
-func Everett(m Matrix) Matrix {
+func (m Matrix) Everett() Matrix {
 	o := Matrix{
 		Cols: 2 * m.Cols,
 		Rows: m.Rows,
@@ -515,7 +515,7 @@ func Everett(m Matrix) Matrix {
 
 // TaylorSoftmax is the taylor softmax
 // https://arxiv.org/abs/1511.05042
-func TaylorSoftmax(m Matrix) Matrix {
+func (m Matrix) TaylorSoftmax() Matrix {
 	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
@@ -540,8 +540,8 @@ func TaylorSoftmax(m Matrix) Matrix {
 
 // LU lower upper decomposition
 // https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
-func LU(mat Matrix) (Matrix, Matrix) {
-	n := mat.Cols
+func (m Matrix) LU() (Matrix, Matrix) {
+	n := m.Cols
 	lower := NewZeroMatrix(n, n)
 	upper := NewZeroMatrix(n, n)
 	for i := 0; i < n; i++ {
@@ -550,7 +550,7 @@ func LU(mat Matrix) (Matrix, Matrix) {
 			for j := 0; j < i; j++ {
 				sum += lower.Data[i*n+j] * upper.Data[j*n+k]
 			}
-			upper.Data[i*n+k] = mat.Data[i*n+k] - sum
+			upper.Data[i*n+k] = m.Data[i*n+k] - sum
 		}
 		for k := i; k < n; k++ {
 			if i == k {
@@ -561,7 +561,7 @@ func LU(mat Matrix) (Matrix, Matrix) {
 					sum += lower.Data[k*n+j] * upper.Data[j*n+i]
 				}
 				if upper.Data[i*n+i] != 0 {
-					lower.Data[k*n+i] = (mat.Data[k*n+i] - sum) / upper.Data[i*n+i]
+					lower.Data[k*n+i] = (m.Data[k*n+i] - sum) / upper.Data[i*n+i]
 				}
 			}
 		}
@@ -570,8 +570,8 @@ func LU(mat Matrix) (Matrix, Matrix) {
 }
 
 // Determinant calculates the determinant of a matrix
-func Determinant(a Matrix) (float64, error) {
-	l, u := LU(a)
+func (m Matrix) Determinant() (float64, error) {
+	l, u := m.LU()
 	det := 1.0
 	for i := 0; i < l.Cols; i++ {
 		det *= float64(l.Data[i*l.Cols+i]) * float64(u.Data[i*l.Cols+i])
@@ -580,8 +580,8 @@ func Determinant(a Matrix) (float64, error) {
 }
 
 // Inverse computes the matrix inverse
-func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
-	identity := NewIdentityMatrix(a.Cols)
+func (m Matrix) Inverse(rng *rand.Rand) (ai Matrix) {
+	identity := NewIdentityMatrix(m.Cols)
 	s := Meta(512, 1e-7, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
@@ -590,7 +590,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 			z := samples[index].Vars[0][2]
 			//ai := Add(x, H(y, z))
 			ai := SelfAttention(x, y, z)
-			cost := Avg(Quadratic(MulT(a, ai), identity))
+			cost := m.MulT(ai).Quadratic(identity).Avg()
 			samples[index].Cost = float64(cost.Data[0])
 			done <- true
 		}
@@ -600,7 +600,7 @@ func Inverse(rng *rand.Rand, a Matrix) (ai Matrix) {
 		for range samples {
 			<-done
 		}
-	}, a)
+	}, m)
 	//return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
 	return SelfAttention(s.Vars[0][0], s.Vars[0][1], s.Vars[0][2])
 }
@@ -672,8 +672,8 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 			x := samples[index].Vars[0][0]
 			y := samples[index].Vars[0][1]
 			z := samples[index].Vars[0][2]
-			sample := Add(x, H(y, z))
-			cost := Avg(Quadratic(MulT(sample, T(sample)), m.E))
+			sample := x.Add(y.H(z))
+			cost := sample.MulT(sample.T()).Quadratic(m.E).Avg()
 			samples[index].Cost = float64(cost.Data[0])
 			done <- true
 		}
@@ -685,7 +685,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		}
 	}, m.E)
 	s := optimizer.Optimize(1e-6)
-	m.A = Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
+	m.A = s.Vars[0][0].Add(s.Vars[0][1].H(s.Vars[0][2]))
 }
 
 // Sample samples from the multivariate distribution
@@ -695,7 +695,7 @@ func (m Multi) Sample(rng *rand.Rand) Matrix {
 	for i := 0; i < length; i++ {
 		s.Data = append(s.Data, float32(rng.NormFloat64()))
 	}
-	return Add(MulT(m.A, s), m.U)
+	return m.A.MulT(s).Add(m.U)
 }
 
 // LinearRegression computes linear regression
