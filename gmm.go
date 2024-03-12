@@ -6,7 +6,6 @@ package matrix
 
 import (
 	"math"
-	"math/rand"
 	"runtime"
 )
 
@@ -21,11 +20,12 @@ type GMM struct {
 // https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 func NewGMM(input Matrix, clusters int) GMM {
 	const n = 16
+	rng := Rand(3)
 	o := Optimizer{
 		N:      n,
 		Length: n * n * n,
 		Scale:  .01,
-		Rng:    rand.New(rand.NewSource(3)),
+		Rng:    &rng,
 		Cost: func(samples []Sample, a ...Matrix) {
 			done, cpus := make(chan bool, 8), runtime.NumCPU()
 			process := func(j int) {
@@ -223,7 +223,7 @@ func (g *GMM) Optimize(input Matrix) []int {
 }
 
 func MetaGMM(input Matrix, clusters int) []int {
-	rng := rand.New(rand.NewSource(3))
+	rng := Rand(3)
 	a := make([]Matrix, 2*clusters+1, 2*clusters+1)
 	cluster := 0
 	for cluster < clusters {
@@ -235,7 +235,7 @@ func MetaGMM(input Matrix, clusters int) []int {
 		cluster++
 	}
 	a[cluster] = NewCoord(clusters, input.Rows)
-	sample := Meta(256, .082, .1, rng, 4, .1, 2*clusters+1, false, func(samples []Sample, a ...Matrix) {
+	sample := Meta(256, 0.082, .1, &rng, 4, .1, 2*clusters+1, false, func(samples []Sample, a ...Matrix) {
 		done, cpus := make(chan bool, 8), runtime.NumCPU()
 		process := func(j int) {
 			var w [3]Matrix

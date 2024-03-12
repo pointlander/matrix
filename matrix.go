@@ -7,7 +7,6 @@ package matrix
 import (
 	"fmt"
 	"math"
-	"math/rand"
 
 	"github.com/pointlander/matrix/vector"
 )
@@ -63,15 +62,19 @@ func NewRandomMatrix(cols, rows int) RandomMatrix {
 }
 
 // Sample samples a matrix
-func (r RandomMatrix) Sample(rng *rand.Rand) Generator {
+func (r RandomMatrix) Sample(rng *Rand) Generator {
+	seed := rng.Uint32() + 1
+	if seed == 0 {
+		seed = 1
+	}
 	return Generator{
 		Distribution: r,
-		Seed:         rng.Int63(),
+		Seed:         seed,
 	}
 }
 
 // SampleDiscrete generates a discrete matrix sample
-func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
+func (r RandomMatrix) SampleDiscrete(rng *Rand) Matrix {
 	sample := NewMatrix(r.Cols, r.Rows)
 	for _, value := range r.Data {
 		v := rng.NormFloat64()*value.StdDev + value.Mean
@@ -88,12 +91,12 @@ func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
 // Generator generates a matrix by sampling from a probability distribution
 type Generator struct {
 	Distribution RandomMatrix
-	Seed         int64
+	Seed         uint32
 }
 
 // Sample samples a matrix
 func (g Generator) Sample() Matrix {
-	rng := rand.New(rand.NewSource(g.Seed))
+	rng := Rand(g.Seed)
 	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
 	for _, v := range g.Distribution.Data {
 		value := rng.NormFloat64()*v.StdDev + v.Mean
@@ -613,7 +616,7 @@ func (m Matrix) Determinant() (float64, error) {
 }
 
 // Inverse computes the matrix inverse
-func (m Matrix) Inverse(rng *rand.Rand) (ai Matrix) {
+func (m Matrix) Inverse(rng *Rand) (ai Matrix) {
 	identity := NewIdentityMatrix(m.Cols)
 	s := Meta(512, 1e-1, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
@@ -698,8 +701,8 @@ func NewMultiFromData(vars Matrix) Multi {
 }
 
 // LearnA factors a matrix into AA^T
-func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
-	optimizer := NewOptimizer(rng, 13, .1, 1, func(samples []Sample, x ...Matrix) {
+func (m *Multi) LearnA(rng *Rand, debug *[]float32) {
+	optimizer := NewOptimizer(rng, 14, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
 			x := samples[index].Vars[0][0].Sample()
@@ -722,7 +725,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 }
 
 // Sample samples from the multivariate distribution
-func (m Multi) Sample(rng *rand.Rand) Matrix {
+func (m Multi) Sample(rng *Rand) Matrix {
 	length := m.U.Cols
 	s := NewMatrix(length, 1)
 	for i := 0; i < length; i++ {

@@ -5,13 +5,11 @@
 package experimental
 
 import (
-	"math/rand"
-
 	. "github.com/pointlander/matrix"
 )
 
 // LUFactor factors a matrix into lower and upper
-func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
+func LUFactor(rng *Rand, a Matrix) (l, u Matrix) {
 	s := Meta(128, .1, .1, rng, 4, .1, 2, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {

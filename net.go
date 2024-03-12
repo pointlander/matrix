@@ -5,7 +5,6 @@
 package matrix
 
 import (
-	"math/rand"
 	"runtime"
 )
 
@@ -15,10 +14,10 @@ type Net struct {
 }
 
 // NewNet makes a new network
-func NewNet(seed int64, inputs, outputs int) Net {
-	rng := rand.New(rand.NewSource(seed))
+func NewNet(seed uint32, inputs, outputs int) Net {
+	rng := Rand(seed)
 	return Net{
-		Optimizer: NewOptimizer(rng, 10, .1, 3, func(samples []Sample, a ...Matrix) {
+		Optimizer: NewOptimizer(&rng, 10, .1, 3, func(samples []Sample, a ...Matrix) {
 			q := NewZeroMatrix(outputs, len(samples))
 			k := NewZeroMatrix(outputs, len(samples))
 			v := NewZeroMatrix(outputs, len(samples))

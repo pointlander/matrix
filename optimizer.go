@@ -6,7 +6,6 @@ package matrix
 
 import (
 	"math"
-	"math/rand"
 	"runtime"
 	"sort"
 )
@@ -16,7 +15,7 @@ type Optimizer struct {
 	N      int
 	Length int
 	Scale  float64
-	Rng    *rand.Rand
+	Rng    *Rand
 	Vars   [][3]RandomMatrix
 	Cost   func(samples []Sample, a ...Matrix)
 	Reg    bool
@@ -30,7 +29,7 @@ type Sample struct {
 }
 
 // NewOptimizer creates a new optimizer
-func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
+func NewOptimizer(rng *Rand, n int, scale float64, vars int,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Optimizer {
 	o := Optimizer{
 		N:      n,
@@ -250,7 +249,7 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 }
 
 // Meta is the meta optimizer
-func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int, reg bool,
+func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale float64, vars int, reg bool,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
 	source := make([][6]RandomMatrix, vars, vars)
 	if vars != len(a) {
@@ -277,7 +276,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 			metas[i].N = n
 			metas[i].Length = n * n * n
 			metas[i].Scale = scale
-			metas[i].Rng = rand.New(rand.NewSource(rng.Int63() + 1))
+			seed := rng.Uint32() + 1
+			if seed == 0 {
+				seed = 1
+			}
+			rng := Rand(seed)
+			metas[i].Rng = &rng
 			metas[i].Vars = make([][3]RandomMatrix, vars)
 			for j := range metas[i].Vars {
 				for k := range metas[i].Vars[j] {
