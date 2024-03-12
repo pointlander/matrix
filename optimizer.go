@@ -68,12 +68,19 @@ func NewOptimizer(rng *Rand, n int, scale float64, vars int,
 				o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
 			}
 		}
-	} else {
+	} else if len(a) == 1 {
 		o.Vars = make([][3]RandomMatrix, vars)
 		for v := range o.Vars {
 			o.Vars[v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
 			o.Vars[v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
 			o.Vars[v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+		}
+	} else {
+		o.Vars = make([][3]RandomMatrix, vars)
+		for v := range o.Vars {
+			o.Vars[v][0] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+			o.Vars[v][1] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+			o.Vars[v][2] = NewRandomMatrix(a[v].Cols, a[v].Rows)
 		}
 	}
 	return o
