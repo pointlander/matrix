@@ -429,6 +429,22 @@ func TestLinearRegression(t *testing.T) {
 	}
 }
 
+func BenchmarkGoRand(b *testing.B) {
+	rng := rand.New(rand.NewSource(1))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rng.NormFloat64()
+	}
+}
+
+func BenchmarkCustomRand(b *testing.B) {
+	rng := Rand(1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rng.NormFloat64()
+	}
+}
+
 func BenchmarkMulti(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	b.ResetTimer()

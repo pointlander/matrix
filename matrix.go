@@ -15,7 +15,25 @@ import (
 const (
 	// S is the scaling factor for the softmax
 	S = 1.0 - 1e-300
+	// LFSRMask is a LFSR mask with a maximum period
+	LFSRMask = 0x80000057
 )
+
+// Rand is a random number generator
+type Rand uint32
+
+// Uint32 returns the next random number
+func (r *Rand) Uint32() uint32 {
+	lfsr := *r
+	lfsr = (lfsr >> 1) ^ (-(lfsr & 1) & LFSRMask)
+	*r = lfsr
+	return uint32(lfsr)
+}
+
+// Float64 generates a uniform float64
+func (r *Rand) Float64() float64 {
+	return float64(r.Uint32()) / math.MaxUint32
+}
 
 // Random is a random variable
 type Random struct {
