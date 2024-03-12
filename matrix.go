@@ -45,13 +45,11 @@ func NewRandomMatrix(cols, rows int) RandomMatrix {
 }
 
 // Sample samples a matrix
-func (r RandomMatrix) Sample(rng *rand.Rand) Matrix {
-	sample := NewMatrix(r.Cols, r.Rows)
-	for _, v := range r.Data {
-		value := rng.NormFloat64()*v.StdDev + v.Mean
-		sample.Data = append(sample.Data, float32(value))
+func (r RandomMatrix) Sample(rng *rand.Rand) Generator {
+	return Generator{
+		Distribution: r,
+		Seed:         rng.Int63(),
 	}
-	return sample
 }
 
 // SampleDiscrete generates a discrete matrix sample
@@ -65,6 +63,23 @@ func (r RandomMatrix) SampleDiscrete(rng *rand.Rand) Matrix {
 			v = -1
 		}
 		sample.Data = append(sample.Data, float32(v))
+	}
+	return sample
+}
+
+// Generator generates a matrix by sampling from a probability distribution
+type Generator struct {
+	Distribution RandomMatrix
+	Seed         int64
+}
+
+// Sample samples a matrix
+func (g Generator) Sample() Matrix {
+	rng := rand.New(rand.NewSource(g.Seed))
+	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
+	for _, v := range g.Distribution.Data {
+		value := rng.NormFloat64()*v.StdDev + v.Mean
+		sample.Data = append(sample.Data, float32(value))
 	}
 	return sample
 }
@@ -582,14 +597,14 @@ func (m Matrix) Determinant() (float64, error) {
 // Inverse computes the matrix inverse
 func (m Matrix) Inverse(rng *rand.Rand) (ai Matrix) {
 	identity := NewIdentityMatrix(m.Cols)
-	s := Meta(512, 1e-7, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
+	s := Meta(512, 1e-1, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
-			x := samples[index].Vars[0][0]
-			y := samples[index].Vars[0][1]
-			z := samples[index].Vars[0][2]
-			//ai := Add(x, H(y, z))
-			ai := SelfAttention(x, y, z)
+			x := samples[index].Vars[0][0].Sample()
+			y := samples[index].Vars[0][1].Sample()
+			z := samples[index].Vars[0][2].Sample()
+			ai := x.Add(y.H(z))
+			//ai := SelfAttention(x, y, z)
 			cost := m.MulT(ai).Quadratic(identity).Avg()
 			samples[index].Cost = float64(cost.Data[0])
 			done <- true
@@ -601,8 +616,8 @@ func (m Matrix) Inverse(rng *rand.Rand) (ai Matrix) {
 			<-done
 		}
 	}, m)
-	//return Add(s.Vars[0][0], H(s.Vars[0][1], s.Vars[0][2]))
-	return SelfAttention(s.Vars[0][0], s.Vars[0][1], s.Vars[0][2])
+	return s.Vars[0][0].Sample().Add(s.Vars[0][1].Sample().H(s.Vars[0][2].Sample()))
+	//return SelfAttention(s.Vars[0][0].Sample(), s.Vars[0][1].Sample(), s.Vars[0][2].Sample())
 }
 
 // Multi is a multivariate distribution
@@ -669,9 +684,9 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 	optimizer := NewOptimizer(rng, 13, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
-			x := samples[index].Vars[0][0]
-			y := samples[index].Vars[0][1]
-			z := samples[index].Vars[0][2]
+			x := samples[index].Vars[0][0].Sample()
+			y := samples[index].Vars[0][1].Sample()
+			z := samples[index].Vars[0][2].Sample()
 			sample := x.Add(y.H(z))
 			cost := sample.MulT(sample.T()).Quadratic(m.E).Avg()
 			samples[index].Cost = float64(cost.Data[0])
@@ -685,7 +700,7 @@ func (m *Multi) LearnA(rng *rand.Rand, debug *[]float32) {
 		}
 	}, m.E)
 	s := optimizer.Optimize(1e-6)
-	m.A = s.Vars[0][0].Add(s.Vars[0][1].H(s.Vars[0][2]))
+	m.A = s.Vars[0][0].Sample().Add(s.Vars[0][1].Sample().H(s.Vars[0][2].Sample()))
 }
 
 // Sample samples from the multivariate distribution

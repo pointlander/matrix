@@ -15,13 +15,13 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 	s := Meta(128, .1, .1, rng, 4, .1, 2, false, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
-			xl := samples[index].Vars[0][0]
-			yl := samples[index].Vars[0][1]
-			zl := samples[index].Vars[0][2]
+			xl := samples[index].Vars[0][0].Sample()
+			yl := samples[index].Vars[0][1].Sample()
+			zl := samples[index].Vars[0][2].Sample()
 			sl := xl.Add(yl.H(zl))
-			xu := samples[index].Vars[1][0]
-			yu := samples[index].Vars[1][1]
-			zu := samples[index].Vars[1][2]
+			xu := samples[index].Vars[1][0].Sample()
+			yu := samples[index].Vars[1][1].Sample()
+			zu := samples[index].Vars[1][2].Sample()
 			su := xu.Add(yu.H(zu))
 			for x := 0; x < sl.Cols; x++ {
 				for y := 0; y < x; y++ {
@@ -43,13 +43,13 @@ func LUFactor(rng *rand.Rand, a Matrix) (l, u Matrix) {
 			<-done
 		}
 	}, a)
-	xl := s.Vars[0][0]
-	yl := s.Vars[0][1]
-	zl := s.Vars[0][2]
+	xl := s.Vars[0][0].Sample()
+	yl := s.Vars[0][1].Sample()
+	zl := s.Vars[0][2].Sample()
 	sl := xl.Add(yl.H(zl))
-	xu := s.Vars[1][0]
-	yu := s.Vars[1][1]
-	zu := s.Vars[1][2]
+	xu := s.Vars[1][0].Sample()
+	yu := s.Vars[1][1].Sample()
+	zu := s.Vars[1][2].Sample()
 	su := xu.Add(yu.H(zu))
 	for x := 0; x < sl.Cols; x++ {
 		for y := 0; y < x; y++ {

@@ -21,9 +21,9 @@ func TestNorm(t *testing.T) {
 	optimizer := NewOptimizer(rng, 8, .1, 1, func(samples []Sample, x ...Matrix) {
 		done := make(chan bool, 8)
 		process := func(index int) {
-			x := samples[index].Vars[0][0]
-			y := samples[index].Vars[0][1]
-			z := samples[index].Vars[0][2]
+			x := samples[index].Vars[0][0].Sample()
+			y := samples[index].Vars[0][1].Sample()
+			z := samples[index].Vars[0][2].Sample()
 			ai := x.Add(y.H(z))
 			cost := a.MulT(ai).Quadratic(identity).Avg()
 			samples[index].Cost = float64(cost.Data[0])
@@ -38,7 +38,7 @@ func TestNorm(t *testing.T) {
 	}, a)
 	optimizer.Norm = true
 	s := optimizer.Optimize(1e-6)
-	ai := s.Vars[0][0].Add(s.Vars[0][1].H(s.Vars[0][2]))
+	ai := s.Vars[0][0].Sample().Add(s.Vars[0][1].Sample().H(s.Vars[0][2].Sample()))
 	b := a.MulT(ai)
 	t.Log(b)
 	for i := 0; i < b.Rows; i++ {
@@ -476,9 +476,9 @@ func BenchmarkInverse(b *testing.B) {
 		optimizer := NewOptimizer(rng, 10, .1, 1, func(samples []Sample, x ...Matrix) {
 			done := make(chan bool, 8)
 			process := func(index int) {
-				x := samples[index].Vars[0][0]
-				y := samples[index].Vars[0][1]
-				z := samples[index].Vars[0][2]
+				x := samples[index].Vars[0][0].Sample()
+				y := samples[index].Vars[0][1].Sample()
+				z := samples[index].Vars[0][2].Sample()
 				cost := a.MulT(x.Add(y.H(z))).Quadratic(identity).Avg()
 				samples[index].Cost = float64(cost.Data[0])
 				done <- true
@@ -507,9 +507,9 @@ func BenchmarkInverseMeta(b *testing.B) {
 		Meta(128, .1, .1, rng, 4, .1, 1, false, func(samples []Sample, x ...Matrix) {
 			done := make(chan bool, 8)
 			process := func(index int) {
-				x := samples[index].Vars[0][0]
-				y := samples[index].Vars[0][1]
-				z := samples[index].Vars[0][2]
+				x := samples[index].Vars[0][0].Sample()
+				y := samples[index].Vars[0][1].Sample()
+				z := samples[index].Vars[0][2].Sample()
 				cost := a.MulT(x.Add(y.H(z))).Quadratic(identity).Avg()
 				samples[index].Cost = float64(cost.Data[0])
 				done <- true
