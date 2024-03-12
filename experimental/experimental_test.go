@@ -6,20 +6,19 @@ package experimental
 
 import (
 	"math"
-	"math/rand"
 	"testing"
 
 	. "github.com/pointlander/matrix"
 )
 
 func TestLUFactor(t *testing.T) {
-	rng := rand.New(rand.NewSource(1))
+	rng := Rand(1)
 	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
 		3, 8,
 		4, 6,
 	)
-	l, u := LUFactor(rng, a)
+	l, u := LUFactor(&rng, a)
 	b := l.MulT(u.T())
 	t.Log(b)
 	if math.Round(float64(b.Data[0])) != 3 {

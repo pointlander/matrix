@@ -6,7 +6,6 @@ package matrix
 
 import (
 	"math"
-	"math/rand"
 	"runtime"
 	"sort"
 )
@@ -16,7 +15,7 @@ type Optimizer struct {
 	N      int
 	Length int
 	Scale  float64
-	Rng    *rand.Rand
+	Rng    *Rand
 	Vars   [][3]RandomMatrix
 	Cost   func(samples []Sample, a ...Matrix)
 	Reg    bool
@@ -26,11 +25,11 @@ type Optimizer struct {
 // Sample is a sample of the optimizer
 type Sample struct {
 	Cost float64
-	Vars [][3]Matrix
+	Vars [][3]Generator
 }
 
 // NewOptimizer creates a new optimizer
-func NewOptimizer(rng *rand.Rand, n int, scale float64, vars int,
+func NewOptimizer(rng *Rand, n int, scale float64, vars int,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Optimizer {
 	o := Optimizer{
 		N:      n,
@@ -84,7 +83,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	samples := make([]Sample, o.Length, o.Length)
 	if o.Norm {
 		for i := range samples {
-			samples[i].Vars = make([][3]Matrix, len(o.Vars), len(o.Vars))
+			samples[i].Vars = make([][3]Generator, len(o.Vars), len(o.Vars))
 			for v := range samples[i].Vars {
 				for j := range samples[i].Vars[v] {
 					samples[i].Vars[v][j] = o.Vars[v][j].Sample(o.Rng)
@@ -92,11 +91,11 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 			}
 		}
 	} else {
-		s := make([][][]Matrix, len(o.Vars))
+		s := make([][][]Generator, len(o.Vars))
 		for v := range s {
-			s[v] = make([][]Matrix, 3)
+			s[v] = make([][]Generator, 3)
 			for j := range s[v] {
-				s[v][j] = make([]Matrix, o.N)
+				s[v][j] = make([]Generator, o.N)
 				for k := range s[v][j] {
 					s[v][j][k] = o.Vars[v][j].Sample(o.Rng)
 				}
@@ -108,7 +107,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 				for _, y := range s[v][1] {
 					for _, z := range s[v][2] {
 						if samples[index].Vars == nil {
-							samples[index].Vars = make([][3]Matrix, len(s), len(s))
+							samples[index].Vars = make([][3]Generator, len(s), len(s))
 						}
 						samples[index].Vars[v][0] = x
 						samples[index].Vars[v][1] = y
@@ -126,6 +125,9 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	})
 	length := o.Length
 	if o.Reg {
+		panic("Reg currently not supported")
+	}
+	/*if o.Reg {
 		length++
 		x := NewMatrix(len(samples), 1)
 		for _, s := range samples {
@@ -152,7 +154,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Cost < samples[j].Cost
 		})
-	}
+	}*/
 
 	mean, stddev := 0.0, 0.0
 	for i := range samples {
@@ -174,12 +176,12 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 					vv.Data[k].StdDev = 0
 				}
 				for k := range samples {
-					for l, value := range samples[k].Vars[j][v].Data {
+					for l, value := range samples[k].Vars[j][v].Sample().Data {
 						vv.Data[l].Mean += float64(value) / float64(o.Length)
 					}
 				}
 				for k := range samples {
-					for l, value := range samples[k].Vars[j][v].Data {
+					for l, value := range samples[k].Vars[j][v].Sample().Data {
 						diff := vv.Data[l].Mean - float64(value)
 						vv.Data[l].StdDev += diff * diff / float64(o.Length)
 					}
@@ -213,12 +215,12 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 				vv.Data[k].StdDev = 0
 			}
 			for k := range samples {
-				for l, value := range samples[k].Vars[j][v].Data {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					vv.Data[l].Mean += weights[k] * float64(value)
 				}
 			}
 			for k := range samples {
-				for l, value := range samples[k].Vars[j][v].Data {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					diff := vv.Data[l].Mean - float64(value)
 					vv.Data[l].StdDev += weights[k] * diff * diff
 				}
@@ -247,7 +249,7 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 }
 
 // Meta is the meta optimizer
-func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, scale float64, vars int, reg bool,
+func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale float64, vars int, reg bool,
 	cost func(samples []Sample, a ...Matrix), a ...Matrix) Sample {
 	source := make([][6]RandomMatrix, vars, vars)
 	if vars != len(a) {
@@ -274,7 +276,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *rand.Rand, n int, sc
 			metas[i].N = n
 			metas[i].Length = n * n * n
 			metas[i].Scale = scale
-			metas[i].Rng = rand.New(rand.NewSource(rng.Int63() + 1))
+			seed := rng.Uint32() + 1
+			if seed == 0 {
+				seed = 1
+			}
+			rng := Rand(seed)
+			metas[i].Rng = &rng
 			metas[i].Vars = make([][3]RandomMatrix, vars)
 			for j := range metas[i].Vars {
 				for k := range metas[i].Vars[j] {
