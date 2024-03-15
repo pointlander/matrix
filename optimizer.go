@@ -304,6 +304,7 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 			}
 			metas[i].Optimizer.Cost = cost
 			metas[i].Optimizer.Reg = reg
+			metas[i].Norm = true
 		}
 
 		index, flight, cpus, done := 0, 0, runtime.NumCPU(), make(chan bool, 8)

@@ -26,6 +26,7 @@ func NewGMM(input Matrix, clusters int) GMM {
 		Length: n * n * n,
 		Scale:  .01,
 		Rng:    &rng,
+		Norm:   true,
 		Cost: func(samples []Sample, a ...Matrix) {
 			done, cpus := make(chan bool, 8), runtime.NumCPU()
 			process := func(j int) {
@@ -130,17 +131,17 @@ func NewGMM(input Matrix, clusters int) GMM {
 		o.Vars[v][0] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][0].Data {
 			o.Vars[v][0].Data[j].Mean = 0
-			o.Vars[v][0].Data[j].StdDev = mean
+			o.Vars[v][0].Data[j].StdDev = 1
 		}
 		o.Vars[v][1] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][1].Data {
 			o.Vars[v][1].Data[j].Mean = 0
-			o.Vars[v][1].Data[j].StdDev = mean
+			o.Vars[v][1].Data[j].StdDev = 1
 		}
 		o.Vars[v][2] = NewRandomMatrix(input.Cols, input.Cols)
 		for j := range o.Vars[v][2].Data {
 			o.Vars[v][2].Data[j].Mean = 0
-			o.Vars[v][2].Data[j].StdDev = mean
+			o.Vars[v][2].Data[j].StdDev = 1
 		}
 	}
 	u := o.Vars[clusters : 2*clusters]
@@ -148,17 +149,17 @@ func NewGMM(input Matrix, clusters int) GMM {
 		u[v][0] = NewRandomMatrix(input.Cols, 1)
 		for j := range u[v][0].Data {
 			u[v][0].Data[j].Mean = 0
-			u[v][0].Data[j].StdDev = mean
+			u[v][0].Data[j].StdDev = 1
 		}
 		u[v][1] = NewRandomMatrix(input.Cols, 1)
 		for j := range u[v][1].Data {
 			u[v][1].Data[j].Mean = 0
-			u[v][1].Data[j].StdDev = mean
+			u[v][1].Data[j].StdDev = 1
 		}
 		u[v][2] = NewRandomMatrix(input.Cols, 1)
 		for j := range u[v][2].Data {
 			u[v][2].Data[j].Mean = 0
-			u[v][2].Data[j].StdDev = mean
+			u[v][2].Data[j].StdDev = 1
 		}
 	}
 	for v := range o.Vars[2*clusters] {

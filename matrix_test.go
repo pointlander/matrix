@@ -275,8 +275,21 @@ func TestIris(t *testing.T) {
 		}
 	}
 	in := NewMatrix(Embedding, len(flowers))
+	max := float32(0.0)
 	for i := range flowers {
-		in.Data = append(in.Data, flowers[i].Embedding...)
+		for _, value := range flowers[i].Embedding {
+			if value < 0 {
+				value = -value
+			}
+			if value > max {
+				max = value
+			}
+		}
+	}
+	for i := range flowers {
+		for _, value := range flowers[i].Embedding {
+			in.Data = append(in.Data, value/max)
+		}
 	}
 	gmm := NewGMM(in, Clusters)
 	out := gmm.Optimize(in)
