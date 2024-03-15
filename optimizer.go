@@ -205,12 +205,24 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	}
 
 	weights, sum := make([]float64, length, length), 0.0
+	zero := samples[0].Cost
+	up, down := 0, 0
+	limit := 0
+	upper, lower := mean+2*stddev, mean-3*stddev
 	for i := range weights {
-		diff := (samples[i].Cost - mean) / stddev
-		weight := math.Exp(-(diff*diff/2 + o.Scale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
+		if samples[i].Cost > upper {
+			limit = i
+			up++
+			break
+		} else if samples[i].Cost < lower {
+			down++
+		}
+		diff := (samples[i].Cost - zero)
+		weight := math.Exp(-(diff * float64(i)))
 		sum += weight
 		weights[i] = weight
 	}
+	//fmt.Println(up, down)
 	for i := range weights {
 		weights[i] /= sum
 	}
@@ -221,12 +233,12 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 			for k := range vv.Data {
 				vv.Data[k].StdDev = 0
 			}
-			for k := range samples {
+			for k := range samples[:limit] {
 				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					vv.Data[l].Mean += weights[k] * float64(value)
 				}
 			}
-			for k := range samples {
+			for k := range samples[:limit] {
 				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					diff := vv.Data[l].Mean - float64(value)
 					vv.Data[l].StdDev += weights[k] * diff * diff
@@ -236,6 +248,38 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 				vv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
 				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
 			}
+			/*vvv := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
+			for k := range vv.Data {
+				vvv.Data[k].StdDev = 0
+			}
+			d := samples[0].Vars[j][v].Distribution
+			loss := make([]float64, d.Cols*d.Rows)
+			for k := range samples {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					upper, lower := vv.Data[l].Mean+5*vv.Data[l].StdDev, vv.Data[l].Mean-5*vv.Data[l].StdDev
+					item := weights[k] * float64(value)
+					if item < upper && item > lower {
+						vvv.Data[l].Mean += item
+					} else {
+						loss[l] += weights[k]
+					}
+				}
+			}
+			for k := range samples {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					upper, lower := vv.Data[l].Mean+5*vv.Data[l].StdDev, vv.Data[l].Mean-5*vv.Data[l].StdDev
+					item := weights[k] * float64(value)
+					if item < upper && item > lower {
+						diff := vvv.Data[l].Mean - float64(value)
+						vvv.Data[l].StdDev += weights[k] * diff * diff / ((1 - loss[l]) + 1e-9)
+					}
+				}
+			}
+			fmt.Println(loss)
+			for k := range vvv.Data {
+				vvv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
+				vvv.Data[k].StdDev = math.Sqrt(vvv.Data[k].StdDev)
+			}*/
 			o.Vars[j][v] = vv
 		}
 	}
