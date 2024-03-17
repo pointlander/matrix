@@ -236,7 +236,23 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 				vv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
 				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
 			}
-			o.Vars[j][v] = vv
+			n := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
+			for k := range o.Vars[j][v].Data {
+				u1 := o.Vars[j][v].Data[k].Mean
+				u2 := vv.Data[k].Mean
+				s1 := o.Vars[j][v].Data[k].StdDev
+				s2 := vv.Data[k].StdDev
+				s1 *= s1
+				s2 *= s2
+				if s1+s2 == 0 {
+					n.Data[k].Mean = vv.Data[k].Mean
+					n.Data[k].StdDev = vv.Data[k].StdDev
+					continue
+				}
+				n.Data[k].Mean = (s1*u2 + s2*u1) / (s1 + s2)
+				n.Data[k].StdDev = math.Sqrt(s1 * s2 / (s1 + s2))
+			}
+			o.Vars[j][v] = n
 		}
 	}
 

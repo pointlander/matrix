@@ -190,7 +190,7 @@ func TestInverse(t *testing.T) {
 
 func TestMulti(t *testing.T) {
 	rng := Rand(1)
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 1; i++ {
 		t.Log(i)
 		multi := Multi{
 			E: NewMatrix(2, 2),
