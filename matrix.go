@@ -350,6 +350,22 @@ func (m Matrix) T() Matrix {
 	return o
 }
 
+// Slice slices a matrix
+func (m Matrix) Slice(begin, end int) Matrix {
+	rows := end - begin
+	o := Matrix{
+		Cols: m.Cols,
+		Rows: rows,
+		Data: make([]float32, 0, m.Cols*rows),
+	}
+	for i := begin; i < end; i++ {
+		for j := 0; j < m.Cols; j++ {
+			o.Data = append(o.Data, m.Data[i*m.Cols+j])
+		}
+	}
+	return o
+}
+
 // Normalize normalizes a matrix to the unit vector
 func (m Matrix) Normalize() Matrix {
 	size, width := len(m.Data), m.Cols
