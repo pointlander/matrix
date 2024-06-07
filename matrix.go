@@ -105,6 +105,25 @@ func (g Generator) Sample() Matrix {
 	return sample
 }
 
+// ComplexMatrix is a complex128 matrix
+type ComplexMatrix struct {
+	Cols int
+	Rows int
+	Data []complex128
+}
+
+// NewComplexMatrix creates a new complex128 matrix
+func NewComplexMatrix(cols, rows int, data ...complex128) ComplexMatrix {
+	if data == nil {
+		data = make([]complex128, 0, cols*rows)
+	}
+	return ComplexMatrix{
+		Cols: cols,
+		Rows: rows,
+		Data: data,
+	}
+}
+
 // Matrix is a float32 matrix
 type Matrix struct {
 	Cols int
@@ -336,6 +355,21 @@ func (m Matrix) Avg() Matrix {
 }
 
 // T tramsposes a matrix
+func (m ComplexMatrix) T() ComplexMatrix {
+	o := ComplexMatrix{
+		Cols: m.Rows,
+		Rows: m.Cols,
+		Data: make([]complex128, 0, m.Cols*m.Rows),
+	}
+	for i := 0; i < m.Cols; i++ {
+		for j := 0; j < m.Rows; j++ {
+			o.Data = append(o.Data, m.Data[j*m.Cols+i])
+		}
+	}
+	return o
+}
+
+// T tramsposes a matrix
 func (m Matrix) T() Matrix {
 	o := Matrix{
 		Cols: m.Rows,
@@ -442,6 +476,14 @@ func dot64(a []float64, b []float32) float64 {
 	return sum
 }
 
+func dotComplex128(a []complex128, b []complex128) complex128 {
+	sum := complex(0, 0)
+	for i, v := range a {
+		sum += v * b[i]
+	}
+	return sum
+}
+
 func taylor(values []float32) {
 	sum := float32(0.0)
 	for j, value := range values {
@@ -484,6 +526,41 @@ func SelfAttention(Q, K, V Matrix) Matrix {
 		for j := 0; j < V.Rows; j++ {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			outputs[j] = vector.Dot(values, V)
+		}
+		//softmax(outputs)
+		o.Data = append(o.Data, outputs...)
+	}
+	return o
+}
+
+// ComplexSelfAttention computes the self attention of Q, K, V
+func ComplexSelfAttention(Q, K, V ComplexMatrix) ComplexMatrix {
+	o := ComplexMatrix{
+		Cols: V.Cols,
+		Rows: K.Rows,
+		Data: make([]complex128, 0, V.Rows*K.Rows),
+	}
+	outputs, values := make([]complex128, V.Cols), make([]complex128, Q.Rows)
+	r, img := make([]float64, Q.Rows), make([]float64, Q.Rows)
+	V = V.T()
+	for i := 0; i < K.Rows; i++ {
+		K := K.Data[i*K.Cols : (i+1)*K.Cols]
+		for j := 0; j < Q.Rows; j++ {
+			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
+			values[j] = dotComplex128(K, Q)
+		}
+		for key, value := range values {
+			r[key], img[key] = real(value), imag(value)
+		}
+		softmax64(r)
+		softmax64(img)
+		for key := range values {
+			values[key] = complex(r[key], img[key])
+		}
+
+		for j := 0; j < V.Rows; j++ {
+			V := V.Data[j*V.Cols : (j+1)*V.Cols]
+			outputs[j] = dotComplex128(values, V)
 		}
 		//softmax(outputs)
 		o.Data = append(o.Data, outputs...)
