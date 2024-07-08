@@ -814,6 +814,13 @@ func (m *Multi) LearnA(rng *Rand, debug *[]float32) {
 		}
 	}, m.E)
 	s := optimizer.Optimize(1e-6)
+	/*var s Sample
+	for {
+		s = optimizer.Iterate()
+		if s.Cost < 1e-3 {
+			break
+		}
+	}*/
 	m.A = s.Vars[0][0].Sample().Add(s.Vars[0][1].Sample().H(s.Vars[0][2].Sample()))
 }
 

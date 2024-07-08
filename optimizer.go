@@ -340,9 +340,9 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		}
 	}
 
-	weights, sum = make([]float64, index-indexA), 0.0
+	weights, sum = make([]float64, index), 0.0
 	for i := range weights {
-		weight := math.Exp(-o.Scale * float64(i))
+		weight := math.Exp(-o.Scale * float64(i) / 2)
 		sum += weight
 		weights[i] = weight
 	}
@@ -356,12 +356,12 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 			for k := range vv.Data {
 				vv.Data[k].StdDev = 0
 			}
-			for k := range samples[indexA:index] {
+			for k := range samples[:index] {
 				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					vv.Data[l].Mean += weights[k] * float64(value)
 				}
 			}
-			for k := range samples[indexA:index] {
+			for k := range samples[:index] {
 				for l, value := range samples[k].Vars[j][v].Sample().Data {
 					diff := vv.Data[l].Mean - float64(value)
 					vv.Data[l].StdDev += weights[k] * diff * diff
