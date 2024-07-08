@@ -5,6 +5,7 @@
 package matrix
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"sort"
@@ -131,6 +132,53 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		return samples[i].Cost < samples[j].Cost
 	})
 	length := o.Length
+	vr := func(samples []Sample) int {
+		avg, v := 0.0, 0.0
+		for i := range samples {
+			avg += samples[i].Cost
+		}
+		avg /= float64(len(samples))
+		for i := range samples {
+			diff := avg - samples[i].Cost
+			v += diff * diff
+		}
+		v /= float64(len(samples))
+		max, index := -math.MaxFloat64, 0
+		for i := 1; i < len(samples)-1; i++ {
+			avgA, vA, lenA := 0.0, 0.0, 0.0
+			for j := 0; j < i; j++ {
+				avgA += samples[j].Cost
+				lenA++
+			}
+			avgA /= lenA
+			for j := 0; j < i; j++ {
+				diff := avgA - samples[j].Cost
+				vA += diff * diff
+			}
+			vA /= lenA
+
+			avgB, vB, lenB := 0.0, 0.0, 0.0
+			for j := i; j < len(samples); j++ {
+				avgB += samples[j].Cost
+				lenB++
+			}
+			avgB /= lenB
+			for j := i; j < len(samples); j++ {
+				diff := avgB - samples[j].Cost
+				vB += diff * diff
+			}
+			vB /= lenB
+
+			r := v - (vA + vB)
+			if r > max {
+				max, index = r, i
+			}
+		}
+		return index
+	}
+	index := vr(samples)
+	indexA := vr(samples[:index])
+	fmt.Println(index, indexA)
 	if o.Reg {
 		panic("Reg currently not supported")
 	}
