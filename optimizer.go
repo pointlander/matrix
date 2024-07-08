@@ -5,10 +5,14 @@
 package matrix
 
 import (
-	"fmt"
 	"math"
 	"runtime"
 	"sort"
+)
+
+const (
+	// Clusters is the number of clusters
+	Clusters = 2
 )
 
 // Optimizer is an optimizer
@@ -17,7 +21,7 @@ type Optimizer struct {
 	Length int
 	Scale  float64
 	Rng    *Rand
-	Vars   [][3]RandomMatrix
+	Vars   [Clusters][][3]RandomMatrix
 	Cost   func(samples []Sample, a ...Matrix)
 	Reg    bool
 	Norm   bool
@@ -51,76 +55,89 @@ func NewOptimizer(rng *Rand, n int, scale float64, vars int,
 		}
 		stddev /= float64(len(a[0].Data))
 		stddev = math.Sqrt(stddev)
-		o.Vars = make([][3]RandomMatrix, vars)
-		for v := range o.Vars {
-			o.Vars[v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
-			for j := range o.Vars[v][0].Data {
-				o.Vars[v][0].Data[j].Mean = 0
-				o.Vars[v][0].Data[j].StdDev = mean
-			}
-			o.Vars[v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
-			for j := range o.Vars[v][1].Data {
-				o.Vars[v][1].Data[j].Mean = 0
-				o.Vars[v][1].Data[j].StdDev = math.Sqrt(stddev)
-			}
-			o.Vars[v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
-			for j := range o.Vars[v][2].Data {
-				o.Vars[v][2].Data[j].Mean = 0
-				o.Vars[v][2].Data[j].StdDev = math.Sqrt(stddev)
+		for c := 0; c < Clusters; c++ {
+			o.Vars[c] = make([][3]RandomMatrix, vars)
+			for v := range o.Vars[c] {
+				o.Vars[c][v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+				for j := range o.Vars[c][v][0].Data {
+					o.Vars[c][v][0].Data[j].Mean = 0
+					o.Vars[c][v][0].Data[j].StdDev = mean
+				}
+				o.Vars[c][v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+				for j := range o.Vars[c][v][1].Data {
+					o.Vars[c][v][1].Data[j].Mean = 0
+					o.Vars[c][v][1].Data[j].StdDev = math.Sqrt(stddev)
+				}
+				o.Vars[c][v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+				for j := range o.Vars[c][v][2].Data {
+					o.Vars[c][v][2].Data[j].Mean = 0
+					o.Vars[c][v][2].Data[j].StdDev = math.Sqrt(stddev)
+				}
 			}
 		}
 	} else if len(a) == 1 {
-		o.Vars = make([][3]RandomMatrix, vars)
-		for v := range o.Vars {
-			o.Vars[v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
-			o.Vars[v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
-			o.Vars[v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+		for c := 0; c < Clusters; c++ {
+			o.Vars[c] = make([][3]RandomMatrix, vars)
+			for v := range o.Vars {
+				o.Vars[c][v][0] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+				o.Vars[c][v][1] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+				o.Vars[c][v][2] = NewRandomMatrix(a[0].Cols, a[0].Rows)
+			}
 		}
 	} else {
-		o.Vars = make([][3]RandomMatrix, vars)
-		for v := range o.Vars {
-			o.Vars[v][0] = NewRandomMatrix(a[v].Cols, a[v].Rows)
-			o.Vars[v][1] = NewRandomMatrix(a[v].Cols, a[v].Rows)
-			o.Vars[v][2] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+		for c := 0; c < Clusters; c++ {
+			o.Vars[c] = make([][3]RandomMatrix, vars)
+			for v := range o.Vars {
+				o.Vars[c][v][0] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+				o.Vars[c][v][1] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+				o.Vars[c][v][2] = NewRandomMatrix(a[v].Cols, a[v].Rows)
+			}
 		}
 	}
 	return o
 }
 
 func (o *Optimizer) Iterate(a ...Matrix) Sample {
-	samples := make([]Sample, o.Length, o.Length)
+	samples := make([]Sample, Clusters*o.Length, Clusters*o.Length)
 	if o.Norm {
-		for i := range samples {
-			samples[i].Vars = make([][3]Generator, len(o.Vars), len(o.Vars))
-			for v := range samples[i].Vars {
-				for j := range samples[i].Vars[v] {
-					samples[i].Vars[v][j] = o.Vars[v][j].Sample(o.Rng)
+		for c := 0; c < Clusters; c++ {
+			for i := range samples {
+				samples[i].Vars = make([][3]Generator, len(o.Vars[c]), len(o.Vars[c]))
+				for v := range samples[i].Vars {
+					for j := range samples[i].Vars[v] {
+						samples[i].Vars[v][j] = o.Vars[c][v][j].Sample(o.Rng)
+					}
 				}
 			}
 		}
 	} else {
-		s := make([][][]Generator, len(o.Vars))
-		for v := range s {
-			s[v] = make([][]Generator, 3)
-			for j := range s[v] {
-				s[v][j] = make([]Generator, o.N)
-				for k := range s[v][j] {
-					s[v][j][k] = o.Vars[v][j].Sample(o.Rng)
+		s := [Clusters][][][]Generator{}
+		for c := 0; c < Clusters; c++ {
+			s[c] = make([][][]Generator, len(o.Vars[c]))
+			for v := range s[c] {
+				s[c][v] = make([][]Generator, 3)
+				for j := range s[c][v] {
+					s[c][v][j] = make([]Generator, o.N)
+					for k := range s[c][v][j] {
+						s[c][v][j][k] = o.Vars[c][v][j].Sample(o.Rng)
+					}
 				}
 			}
 		}
-		for v := range s {
-			index := 0
-			for _, x := range s[v][0] {
-				for _, y := range s[v][1] {
-					for _, z := range s[v][2] {
-						if samples[index].Vars == nil {
-							samples[index].Vars = make([][3]Generator, len(s), len(s))
+		index := 0
+		for c := range s {
+			for v := range s[c] {
+				for _, x := range s[c][v][0] {
+					for _, y := range s[c][v][1] {
+						for _, z := range s[c][v][2] {
+							if samples[index].Vars == nil {
+								samples[index].Vars = make([][3]Generator, len(s[c]), len(s[c]))
+							}
+							samples[index].Vars[v][0] = x
+							samples[index].Vars[v][1] = y
+							samples[index].Vars[v][2] = z
+							index++
 						}
-						samples[index].Vars[v][0] = x
-						samples[index].Vars[v][1] = y
-						samples[index].Vars[v][2] = z
-						index++
 					}
 				}
 			}
@@ -131,7 +148,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	sort.Slice(samples, func(i, j int) bool {
 		return samples[i].Cost < samples[j].Cost
 	})
-	length := o.Length
+	//length := o.Length
 	vr := func(samples []Sample) int {
 		avg, v := 0.0, 0.0
 		for i := range samples {
@@ -178,7 +195,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 	}
 	index := vr(samples)
 	indexA := vr(samples[:index])
-	fmt.Println(index, indexA)
+	//fmt.Println(index, indexA)
 	if o.Reg {
 		panic("Reg currently not supported")
 	}
@@ -211,7 +228,7 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		})
 	}*/
 
-	mean, stddev := 0.0, 0.0
+	/*mean, stddev := 0.0, 0.0
 	for i := range samples {
 		mean += samples[i].Cost
 	}
@@ -250,9 +267,9 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		}
 
 		return samples[0]
-	}
+	}*/
 
-	weights, sum := make([]float64, length, length), 0.0
+	/*weights, sum := make([]float64, length, length), 0.0
 	for i := range weights {
 		diff := (samples[i].Cost - mean) / stddev
 		weight := math.Exp(-(diff*diff/2 + o.Scale*float64(i))) / (stddev * math.Sqrt(2*math.Pi))
@@ -286,6 +303,76 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 			}
 			o.Vars[j][v] = vv
 		}
+	}*/
+
+	weights, sum := make([]float64, indexA), 0.0
+	for i := range weights {
+		weight := math.Exp(-o.Scale * float64(i))
+		sum += weight
+		weights[i] = weight
+	}
+	for i := range weights {
+		weights[i] /= sum
+	}
+
+	for j := range o.Vars[0] {
+		for v := range o.Vars[0][j] {
+			vv := NewRandomMatrix(o.Vars[0][j][v].Cols, o.Vars[0][j][v].Rows)
+			for k := range vv.Data {
+				vv.Data[k].StdDev = 0
+			}
+			for k := range samples[:indexA] {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					vv.Data[l].Mean += weights[k] * float64(value)
+				}
+			}
+			for k := range samples[:indexA] {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					diff := vv.Data[l].Mean - float64(value)
+					vv.Data[l].StdDev += weights[k] * diff * diff
+				}
+			}
+			for k := range vv.Data {
+				//vv.Data[k].StdDev /= (float64(index) - 1.0) / float64(index)
+				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+			}
+			o.Vars[0][j][v] = vv
+		}
+	}
+
+	weights, sum = make([]float64, index-indexA), 0.0
+	for i := range weights {
+		weight := math.Exp(-o.Scale * float64(i))
+		sum += weight
+		weights[i] = weight
+	}
+	for i := range weights {
+		weights[i] /= sum
+	}
+
+	for j := range o.Vars[1] {
+		for v := range o.Vars[1][j] {
+			vv := NewRandomMatrix(o.Vars[1][j][v].Cols, o.Vars[1][j][v].Rows)
+			for k := range vv.Data {
+				vv.Data[k].StdDev = 0
+			}
+			for k := range samples[indexA:index] {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					vv.Data[l].Mean += weights[k] * float64(value)
+				}
+			}
+			for k := range samples[indexA:index] {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					diff := vv.Data[l].Mean - float64(value)
+					vv.Data[l].StdDev += weights[k] * diff * diff
+				}
+			}
+			for k := range vv.Data {
+				//vv.Data[k].StdDev /= (float64(index) - 1.0) / float64(index)
+				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+			}
+			o.Vars[1][j][v] = vv
+		}
 	}
 
 	return samples[0]
@@ -296,6 +383,7 @@ func (o *Optimizer) Optimize(dx float64) Sample {
 	last := -1.0
 	for {
 		s := o.Iterate()
+		//fmt.Println(s.Cost)
 		if last > 0 && math.Abs(last-s.Cost) < dx {
 			return s
 		}
@@ -337,9 +425,9 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 			}
 			rng := Rand(seed)
 			metas[i].Rng = &rng
-			metas[i].Vars = make([][3]RandomMatrix, vars)
-			for j := range metas[i].Vars {
-				for k := range metas[i].Vars[j] {
+			metas[i].Vars[0] = make([][3]RandomMatrix, vars)
+			for j := range metas[i].Vars[0] {
+				for k := range metas[i].Vars[0][j] {
 					dist := NewRandomMatrix(source[j][k].Cols, source[j][k].Rows)
 					for l := range source[j][k].Data {
 						r := source[j][k].Data[l]
@@ -347,7 +435,7 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 						r = source[j][k+3].Data[l]
 						dist.Data[l].StdDev = rng.NormFloat64()*r.StdDev + r.Mean
 					}
-					metas[i].Vars[j][k] = dist
+					metas[i].Vars[0][j][k] = dist
 				}
 			}
 			metas[i].Optimizer.Cost = cost
@@ -406,12 +494,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 						vv.Data[k].StdDev = 0
 					}
 					for k := range metas {
-						for l, value := range metas[k].Vars[j][v].Data {
+						for l, value := range metas[k].Vars[0][j][v].Data {
 							vv.Data[l].Mean += float64(value.Mean) / float64(len(metas))
 						}
 					}
 					for k := range metas {
-						for l, value := range metas[k].Vars[j][v].Data {
+						for l, value := range metas[k].Vars[0][j][v].Data {
 							diff := vv.Data[l].Mean - float64(value.Mean)
 							vv.Data[l].StdDev += diff * diff / float64(len(metas))
 						}
@@ -429,12 +517,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 						vv.Data[k].StdDev = 0
 					}
 					for k := range metas {
-						for l, value := range metas[k].Vars[j][v].Data {
+						for l, value := range metas[k].Vars[0][j][v].Data {
 							vv.Data[l].Mean += float64(value.StdDev) / float64(len(metas))
 						}
 					}
 					for k := range metas {
-						for l, value := range metas[k].Vars[j][v].Data {
+						for l, value := range metas[k].Vars[0][j][v].Data {
 							diff := vv.Data[l].Mean - float64(value.StdDev)
 							vv.Data[l].StdDev += diff * diff / float64(len(metas))
 						}
@@ -468,12 +556,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 					vv.Data[k].StdDev = 0
 				}
 				for k := range metas {
-					for l, value := range metas[k].Vars[j][v].Data {
+					for l, value := range metas[k].Vars[0][j][v].Data {
 						vv.Data[l].Mean += weights[k] * float64(value.Mean)
 					}
 				}
 				for k := range metas {
-					for l, value := range metas[k].Vars[j][v].Data {
+					for l, value := range metas[k].Vars[0][j][v].Data {
 						diff := vv.Data[l].Mean - float64(value.Mean)
 						vv.Data[l].StdDev += weights[k] * diff * diff
 					}
@@ -491,12 +579,12 @@ func Meta(metaSamples int, metaMin, metaScale float64, rng *Rand, n int, scale f
 					vv.Data[k].StdDev = 0
 				}
 				for k := range metas {
-					for l, value := range metas[k].Vars[j][v].Data {
+					for l, value := range metas[k].Vars[0][j][v].Data {
 						vv.Data[l].Mean += weights[k] * float64(value.StdDev)
 					}
 				}
 				for k := range metas {
-					for l, value := range metas[k].Vars[j][v].Data {
+					for l, value := range metas[k].Vars[0][j][v].Data {
 						diff := vv.Data[l].Mean - float64(value.StdDev)
 						vv.Data[l].StdDev += weights[k] * diff * diff
 					}
