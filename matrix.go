@@ -47,6 +47,13 @@ type RandomMatrix struct {
 	Data []Random
 }
 
+// CompressedRandomMatrix is a compressed random matrix
+type CompressedRandomMatrix struct {
+	Cols int
+	Rows int
+	Data Random
+}
+
 // NewRandomMatrix returns a new random matrix
 func NewRandomMatrix(cols, rows int) RandomMatrix {
 	data := make([]Random, cols*rows)
@@ -88,6 +95,45 @@ func (r RandomMatrix) SampleDiscrete(rng *Rand) Matrix {
 	return sample
 }
 
+// NewCompressedRandomMatrix returns a new compressed random matrix
+func NewCompressedRandomMatrix(cols, rows int) CompressedRandomMatrix {
+	factor := math.Sqrt(2.0 / float64(cols))
+	return CompressedRandomMatrix{
+		Cols: cols,
+		Rows: rows,
+		Data: Random{
+			StdDev: factor,
+		},
+	}
+}
+
+// Sample samples a matrix
+func (r CompressedRandomMatrix) Sample(rng *Rand) CompressedGenerator {
+	seed := rng.Uint32() + 1
+	if seed == 0 {
+		seed = 1
+	}
+	return CompressedGenerator{
+		Distribution: r,
+		Seed:         seed,
+	}
+}
+
+// SampleDiscrete generates a discrete matrix sample
+func (r CompressedRandomMatrix) SampleDiscrete(rng *Rand) Matrix {
+	sample := NewMatrix(r.Cols, r.Rows)
+	for i := 0; i < r.Cols*r.Rows; i++ {
+		v := rng.NormFloat64()*r.Data.StdDev + r.Data.Mean
+		if v > 0 {
+			v = 1
+		} else {
+			v = -1
+		}
+		sample.Data = append(sample.Data, float32(v))
+	}
+	return sample
+}
+
 // Generator generates a matrix by sampling from a probability distribution
 type Generator struct {
 	Distribution RandomMatrix
@@ -100,6 +146,23 @@ func (g Generator) Sample() Matrix {
 	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
 	for _, v := range g.Distribution.Data {
 		value := rng.NormFloat64()*v.StdDev + v.Mean
+		sample.Data = append(sample.Data, float32(value))
+	}
+	return sample
+}
+
+// CompressedGenerator generates a matrix by sampling from a probability distribution
+type CompressedGenerator struct {
+	Distribution CompressedRandomMatrix
+	Seed         uint32
+}
+
+// Sample samples a matrix
+func (g CompressedGenerator) Sample() Matrix {
+	rng := Rand(g.Seed)
+	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
+	for i := 0; i < g.Distribution.Cols*g.Distribution.Rows; i++ {
+		value := rng.NormFloat64()*g.Distribution.Data.StdDev + g.Distribution.Data.Mean
 		sample.Data = append(sample.Data, float32(value))
 	}
 	return sample
