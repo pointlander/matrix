@@ -168,6 +168,17 @@ func (g CompressedGenerator) Sample() Matrix {
 	return sample
 }
 
+// Sample samples a matrix
+func (g CompressedGenerator) Uniform() Matrix {
+	rng := Rand(g.Seed)
+	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
+	for i := 0; i < g.Distribution.Cols*g.Distribution.Rows; i++ {
+		value := rng.Float64()*g.Distribution.Data.StdDev + g.Distribution.Data.Mean
+		sample.Data = append(sample.Data, float32(value))
+	}
+	return sample
+}
+
 // ComplexMatrix is a complex128 matrix
 type ComplexMatrix struct {
 	Cols int
