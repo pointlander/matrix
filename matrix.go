@@ -179,6 +179,24 @@ func (g CompressedGenerator) Uniform() Matrix {
 	return sample
 }
 
+// Sample samples a matrix
+func (g CompressedGenerator) Sparse() Matrix {
+	rng := Rand(g.Seed)
+	sample := NewMatrix(g.Distribution.Cols, g.Distribution.Rows)
+	factor := float32(math.Sqrt(3))
+	for i := 0; i < g.Distribution.Cols*g.Distribution.Rows; i++ {
+		s := rng.Uint32() % 6
+		if s < 1 {
+			sample.Data = append(sample.Data, factor)
+		} else if s < 5 {
+			sample.Data = append(sample.Data, 0)
+		} else {
+			sample.Data = append(sample.Data, -factor)
+		}
+	}
+	return sample
+}
+
 // ComplexMatrix is a complex128 matrix
 type ComplexMatrix struct {
 	Cols int
