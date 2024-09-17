@@ -215,6 +215,8 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 		weights[i] /= sum
 	}
 
+	check := true
+search:
 	for j := range o.Vars {
 		for v := range o.Vars[j] {
 			vv := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
@@ -236,7 +238,58 @@ func (o *Optimizer) Iterate(a ...Matrix) Sample {
 				vv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
 				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
 			}
-			o.Vars[j][v] = vv
+			for k := range o.Vars[j][v].Data {
+				s1 := o.Vars[j][v].Data[k].StdDev
+				s2 := vv.Data[k].StdDev
+				if s1 == 0 || s2 == 0 {
+					check = false
+					break search
+				}
+			}
+		}
+	}
+	for j := range o.Vars {
+		for v := range o.Vars[j] {
+			vv := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
+			for k := range vv.Data {
+				vv.Data[k].StdDev = 0
+			}
+			for k := range samples {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					vv.Data[l].Mean += weights[k] * float64(value)
+				}
+			}
+			for k := range samples {
+				for l, value := range samples[k].Vars[j][v].Sample().Data {
+					diff := vv.Data[l].Mean - float64(value)
+					vv.Data[l].StdDev += weights[k] * diff * diff
+				}
+			}
+			for k := range vv.Data {
+				vv.Data[k].StdDev /= (float64(o.Length) - 1.0) / float64(o.Length)
+				vv.Data[k].StdDev = math.Sqrt(vv.Data[k].StdDev)
+			}
+			if check {
+				n := NewRandomMatrix(o.Vars[j][v].Cols, o.Vars[j][v].Rows)
+				for k := range o.Vars[j][v].Data {
+					u1 := o.Vars[j][v].Data[k].Mean
+					u2 := vv.Data[k].Mean
+					s1 := o.Vars[j][v].Data[k].StdDev
+					s2 := vv.Data[k].StdDev
+					s1 *= s1
+					s2 *= s2
+					if s1+s2 == 0 {
+						n.Data[k].Mean = vv.Data[k].Mean
+						n.Data[k].StdDev = vv.Data[k].StdDev
+						continue
+					}
+					n.Data[k].Mean = (s1*u2 + s2*u1) / (s1 + s2)
+					n.Data[k].StdDev = math.Sqrt(s1 * s2 / (s1 + s2))
+				}
+				o.Vars[j][v] = n
+			} else {
+				o.Vars[j][v] = vv
+			}
 		}
 	}
 
