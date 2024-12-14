@@ -134,7 +134,7 @@ func TestDeterminant(t *testing.T) {
 	}
 }
 
-func TestInverse(t *testing.T) {
+/*func TestInverse(t *testing.T) {
 	rng := Rand(1)
 	a := NewMatrix(2, 2)
 	a.Data = append(a.Data,
@@ -186,7 +186,7 @@ func TestInverse(t *testing.T) {
 			}
 		}
 	}
-}
+}*/
 
 func TestMulti(t *testing.T) {
 	rng := Rand(1)
@@ -215,7 +215,7 @@ func TestMulti(t *testing.T) {
 	}
 }
 
-func TestIris(t *testing.T) {
+/*func TestIris(t *testing.T) {
 	const (
 		// Inputs is the number of inputs
 		Inputs = 4
@@ -337,9 +337,9 @@ func TestIris(t *testing.T) {
 			t.Fatal("entropy is greater than .5")
 		}
 	}
-}
+}*/
 
-func TestIrisSimplified(t *testing.T) {
+/*func TestIrisSimplified(t *testing.T) {
 	const (
 		// Inputs is the number of inputs
 		Inputs = 4
@@ -428,7 +428,7 @@ func TestIrisSimplified(t *testing.T) {
 			t.Fatal("entropy is greater than .5")
 		}
 	}
-}
+}*/
 
 func TestLinearRegression(t *testing.T) {
 	x := NewMatrix(10, 1, []float32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}...)

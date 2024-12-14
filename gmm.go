@@ -126,46 +126,46 @@ func NewGMM(input Matrix, clusters int) GMM {
 		diff := float64(value) - mean
 		stddev += diff * diff
 	}
-	o.Vars = make([][3]RandomMatrix, 2*clusters+1)
+	o.Vars[0] = make([][3]RandomMatrix, 2*clusters+1)
 	for v := range o.Vars[:clusters] {
-		o.Vars[v][0] = NewRandomMatrix(input.Cols, input.Cols)
-		for j := range o.Vars[v][0].Data {
-			o.Vars[v][0].Data[j].Mean = 0
-			o.Vars[v][0].Data[j].StdDev = 1
+		o.Vars[0][v][0] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[0][v][0].Data {
+			o.Vars[0][v][0].Data[j].Mean = 0
+			o.Vars[0][v][0].Data[j].StdDev = 1
 		}
-		o.Vars[v][1] = NewRandomMatrix(input.Cols, input.Cols)
-		for j := range o.Vars[v][1].Data {
-			o.Vars[v][1].Data[j].Mean = 0
-			o.Vars[v][1].Data[j].StdDev = 1
+		o.Vars[0][v][1] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[0][v][1].Data {
+			o.Vars[0][v][1].Data[j].Mean = 0
+			o.Vars[0][v][1].Data[j].StdDev = 1
 		}
-		o.Vars[v][2] = NewRandomMatrix(input.Cols, input.Cols)
-		for j := range o.Vars[v][2].Data {
-			o.Vars[v][2].Data[j].Mean = 0
-			o.Vars[v][2].Data[j].StdDev = 1
+		o.Vars[0][v][2] = NewRandomMatrix(input.Cols, input.Cols)
+		for j := range o.Vars[0][v][2].Data {
+			o.Vars[0][v][2].Data[j].Mean = 0
+			o.Vars[0][v][2].Data[j].StdDev = 1
 		}
 	}
 	u := o.Vars[clusters : 2*clusters]
 	for v := range u {
-		u[v][0] = NewRandomMatrix(input.Cols, 1)
-		for j := range u[v][0].Data {
-			u[v][0].Data[j].Mean = 0
-			u[v][0].Data[j].StdDev = 1
+		u[0][v][0] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[0][v][0].Data {
+			u[0][v][0].Data[j].Mean = 0
+			u[0][v][0].Data[j].StdDev = 1
 		}
-		u[v][1] = NewRandomMatrix(input.Cols, 1)
-		for j := range u[v][1].Data {
-			u[v][1].Data[j].Mean = 0
-			u[v][1].Data[j].StdDev = 1
+		u[0][v][1] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[0][v][1].Data {
+			u[0][v][1].Data[j].Mean = 0
+			u[0][v][1].Data[j].StdDev = 1
 		}
-		u[v][2] = NewRandomMatrix(input.Cols, 1)
-		for j := range u[v][2].Data {
-			u[v][2].Data[j].Mean = 0
-			u[v][2].Data[j].StdDev = 1
+		u[0][v][2] = NewRandomMatrix(input.Cols, 1)
+		for j := range u[0][v][2].Data {
+			u[0][v][2].Data[j].Mean = 0
+			u[0][v][2].Data[j].StdDev = 1
 		}
 	}
 	for v := range o.Vars[2*clusters] {
-		o.Vars[2*clusters][v] = NewRandomMatrix(clusters, input.Rows)
-		for j := range o.Vars[2*clusters][v].Data {
-			o.Vars[2*clusters][v].Data[j].StdDev = 1
+		o.Vars[0][2*clusters][v] = NewRandomMatrix(clusters, input.Rows)
+		for j := range o.Vars[0][2*clusters][v].Data {
+			o.Vars[0][2*clusters][v].Data[j].StdDev = 1
 		}
 	}
 
